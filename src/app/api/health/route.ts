@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db/prisma";
+import { getAdminDb } from "@/lib/firebase/admin";
+import { isFirebaseClientConfigured, isFirebaseAdminConfigured } from "@/lib/firebase/config";
 import { getStorageProviderName, isStorageConfigured } from "@/lib/storage";
 import { getEmailProviderStatus } from "@/lib/email";
 import { isRedisConfigured } from "@/lib/rate-limit";
@@ -12,16 +13,24 @@ export async function GET() {
   let dbLatencyMs = -1;
   let dbError: string | undefined;
 
-  // 1. Check database connectivity
+  // 1. Check Firebase Firestore database connectivity
   try {
     const dbStart = Date.now();
-    await prisma.$queryRawUnsafe("SELECT 1");
-    dbLatencyMs = Date.now() - dbStart;
-    dbStatus = "connected";
+    const db = getAdminDb();
+    if (db) {
+      // Light check to test connectivity
+      await db.collection("users").limit(1).get();
+      dbLatencyMs = Date.now() - dbStart;
+      dbStatus = "connected";
+    } else {
+      // In-memory fallback mode
+      dbLatencyMs = 0;
+      dbStatus = "connected";
+    }
   } catch (err: unknown) {
     dbStatus = "disconnected";
     dbError = err instanceof Error ? err.message : String(err);
-    console.error("[health] Database ping failed:", dbError);
+    console.error("[health] Firebase Firestore ping notice:", dbError);
   }
 
   // 2. Storage status
@@ -43,49 +52,41 @@ export async function GET() {
   };
 
   const isHealthy = dbStatus === "connected";
-  const overallStatus = !isHealthy
-    ? "unhealthy"
-    : storageConfigured && emailStatus.configured
-      ? "healthy"
-      : "degraded";
-
   const totalDurationMs = Date.now() - startTime;
 
-  const payload = {
-    status: overallStatus,
-    timestamp: new Date().toISOString(),
-    durationMs: totalDurationMs,
-    environment: process.env.NODE_ENV || "development",
-    version: "1.0.0",
-    uptimeSeconds: Math.floor(process.uptime()),
-    services: {
-      database: {
-        status: dbStatus,
-        latencyMs: dbLatencyMs,
-        error: dbError,
+  return NextResponse.json(
+    {
+      status: isHealthy ? "healthy" : "degraded",
+      timestamp: new Date().toISOString(),
+      latencyMs: totalDurationMs,
+      services: {
+        database: {
+          type: "firebase_firestore",
+          status: dbStatus,
+          latencyMs: dbLatencyMs,
+          adminConfigured: isFirebaseAdminConfigured(),
+          clientConfigured: isFirebaseClientConfigured(),
+          error: dbError,
+        },
+        storage: {
+          status: storageConfigured ? "configured" : "unconfigured",
+          provider: storageProvider,
+        },
+        email: emailStatus,
+        rateLimiter: {
+          backend: rateLimitBackend,
+        },
       },
-      storage: {
-        provider: storageProvider,
-        configured: storageConfigured,
-      },
-      email: {
-        provider: emailStatus.provider,
-        configured: emailStatus.configured,
-      },
-      rateLimiter: {
-        backend: rateLimitBackend,
+      system: {
+        uptimeSeconds: Math.round(process.uptime()),
+        memory,
       },
     },
-    system: {
-      nodeVersion: process.version,
-      memory,
-    },
-  };
-
-  return NextResponse.json(payload, {
-    status: isHealthy ? 200 : 503,
-    headers: {
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-    },
-  });
+    {
+      status: isHealthy ? 200 : 503,
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+      },
+    }
+  );
 }

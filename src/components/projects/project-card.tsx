@@ -14,7 +14,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
           src={project.gallery[0] ?? "/file.svg"}
           alt={project.name}
           fill
-          quality={100}
+          quality={75}
           className="relative z-0 object-cover transition-transform duration-500 group-hover:scale-110 group-hover:brightness-105 group-hover:saturate-110"
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
         />

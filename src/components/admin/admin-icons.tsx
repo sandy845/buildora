@@ -3,7 +3,7 @@ import { DashboardIcon } from "@/components/client/dashboard-icons";
 type AdminIconProps = { name: string; className?: string };
 
 export function AdminIcon({ name, className = "h-5 w-5" }: AdminIconProps) {
-  if (["grid", "building", "file", "folder", "card", "settings"].includes(name)) {
+  if (["grid", "building", "file", "folder", "card", "settings", "calendar"].includes(name)) {
     return <DashboardIcon name={name} className={className} />;
   }
 

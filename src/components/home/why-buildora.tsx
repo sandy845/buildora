@@ -39,22 +39,32 @@ export function WhyBuildora() {
           {reasons.map((reason, index) => (
             <article
               key={reason.title}
-              className="about-card card-hover-effect group relative overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.07] p-7 shadow-2xl shadow-black/10 backdrop-blur-sm transition-all duration-500 hover:-translate-y-2 hover:border-[#e5c875]/60 hover:bg-white/[0.11] hover:shadow-[#c5a059]/10"
+              className="about-card group relative overflow-hidden rounded-[2rem] border border-[#e5c875]/20 bg-white/[0.04] p-8 shadow-2xl shadow-black/20 backdrop-blur-md transition-all duration-500 ease-out hover:-translate-y-2.5 hover:border-[#e5c875]/70 hover:bg-white/[0.08] hover:shadow-[0_20px_45px_-10px_rgba(229,201,125,0.22)]"
             >
-              <div className="absolute right-0 top-0 h-28 w-28 rounded-full bg-[#c5a059]/10 blur-2xl transition-opacity duration-500 group-hover:opacity-100" />
+              {/* Golden light glow on hover */}
+              <div className="pointer-events-none absolute -right-8 -top-8 h-36 w-36 rounded-full bg-gradient-to-br from-[#e5c875]/25 via-[#c5a059]/10 to-transparent blur-2xl transition-all duration-700 ease-out group-hover:scale-150 group-hover:from-[#e5c875]/45 group-hover:opacity-100" />
+              
               <div className="relative flex items-center justify-between">
-                <div className="gold-gradient-bg flex h-12 w-12 items-center justify-center rounded-2xl text-base font-black text-[#0e1319] shadow-lg shadow-[#c5a059]/20 transition-transform duration-500 group-hover:rotate-6 group-hover:scale-110">
+                {/* Hollow gold number pill */}
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#e5c875]/50 bg-gradient-to-br from-[#e5c875]/20 via-white/[0.05] to-transparent font-mono text-base font-black text-[#e5c875] shadow-lg shadow-[#c5a059]/15 backdrop-blur-md transition-all duration-500 group-hover:scale-110 group-hover:rotate-3 group-hover:border-[#e5c875] group-hover:shadow-[0_0_20px_rgba(229,201,125,0.4)]">
                   {String(index + 1).padStart(2, "0")}
                 </div>
-                <span className="text-xs font-bold tracking-[0.2em] text-white/30">BUILDORA</span>
+                
+                {/* Subtle golden beacon */}
+                <span className="flex h-2.5 w-2.5 items-center justify-center">
+                  <span className="h-2 w-2 rounded-full bg-[#e5c875]/40 transition-all duration-500 group-hover:scale-150 group-hover:bg-[#e5c875] group-hover:shadow-[0_0_10px_#e5c875]" />
+                </span>
               </div>
-              <h3 className="relative mt-7 text-xl font-bold tracking-tight text-white transition-colors group-hover:text-[#e5c875]">
+              
+              <h3 className="relative mt-7 text-xl font-bold tracking-tight text-white transition-colors duration-300 group-hover:text-[#e5c875]">
                 {reason.title}
               </h3>
-              <p className="relative mt-3 text-sm leading-relaxed text-white/60">
+              <p className="relative mt-3 text-sm leading-relaxed text-white/65">
                 {reason.description}
               </p>
-              <div className="relative mt-7 h-px w-12 bg-[#c5a059] transition-all duration-500 group-hover:w-full" />
+              
+              {/* Expanding golden accent bar */}
+              <div className="relative mt-7 h-1 w-12 rounded-full bg-gradient-to-r from-[#c5a059] via-[#e5c875] to-[#c5a059] transition-all duration-500 ease-out group-hover:w-full group-hover:shadow-[0_0_12px_rgba(229,201,125,0.7)]" />
             </article>
           ))}
         </div>

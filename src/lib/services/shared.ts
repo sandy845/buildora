@@ -1,4 +1,5 @@
-import type { UserRole } from "@prisma/client";
+import type { UserRole } from "@/lib/types/models";
+export type { UserRole };
 import { getProject } from "../db/data-access.ts";
 
 

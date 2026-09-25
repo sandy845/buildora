@@ -13,6 +13,8 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     "node_modules/**",
+    "buildora/.next/**",
+    "buildora/node_modules/**",
   ]),
 ]);
 

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 function PasswordVisibilityIcon({ visible }: { visible: boolean }) {
   return (
@@ -22,6 +23,7 @@ export default function ResetPasswordPage() {
   const [errors, setErrors] = useState<Partial<Record<"password" | "confirmPassword", string>>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
+  const searchParams = useSearchParams();
 
   function updateField(field: keyof typeof form, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -56,10 +58,13 @@ export default function ResetPasswordPage() {
     setIsSubmitting(true);
     setStatus("idle");
 
-    await new Promise((resolve) => setTimeout(resolve, 900));
-
+    const response = await fetch("/api/auth/reset-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: searchParams.get("token") || "", password: form.password }),
+    });
     setIsSubmitting(false);
-    setStatus("success");
+    setStatus(response.ok ? "success" : "error");
   }
 
   return (
@@ -111,7 +116,7 @@ export default function ResetPasswordPage() {
 
           {status === "success" && (
             <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-              Password reset successful. This is a mock frontend-only flow.
+              Password reset successful. You can now log in with your new password.
             </p>
           )}
 

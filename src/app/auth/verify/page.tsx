@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { validateVerify } from "@/lib/auth";
 
@@ -23,10 +22,19 @@ export default function VerifyPage() {
     setIsSubmitting(true);
     setStatus("idle");
 
-    await new Promise((resolve) => setTimeout(resolve, 900));
-
+    const response = await fetch("/api/auth/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: otp }),
+    });
     setIsSubmitting(false);
-    setStatus("success");
+    if (response.ok) {
+      setStatus("success");
+    } else {
+      const result = await response.json().catch(() => ({})) as { error?: string };
+      setError(result.error || "That code is invalid or expired.");
+      setStatus("error");
+    }
   }
 
   return (
@@ -36,7 +44,7 @@ export default function VerifyPage() {
         <h1 className="mt-4 text-3xl font-semibold tracking-tighter text-primary">Verify account</h1>
 
         <p className="mt-4 text-sm text-muted">
-          Enter the six-digit code sent to your email to complete the demo setup.
+          Enter the six-digit code sent to your email to complete verification.
         </p>
 
         <form onSubmit={handleSubmit} noValidate className="mt-6 space-y-5">
@@ -58,7 +66,7 @@ export default function VerifyPage() {
 
           {status === "success" && (
             <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-              Verification complete. This is a mock frontend-only flow.
+              Verification complete. You can now log in.
             </p>
           )}
 
@@ -71,12 +79,7 @@ export default function VerifyPage() {
           </button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-muted">
-          Need another code?{" "}
-          <Link href="/auth/forgot-password" className="font-medium text-primary hover:text-muted">
-            Resend
-          </Link>
-        </p>
+        <p className="mt-6 text-center text-sm text-muted">Need another code? Return to registration and choose “Resend verification email”.</p>
       </div>
     </main>
   );

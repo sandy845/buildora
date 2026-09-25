@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { AdminIcon } from "@/components/admin/admin-icons";
-import { DashboardState } from "@/components/client/dashboard-state";
 import { getAdminDashboardDataServer } from "@/lib/data-access";
 import { AdminDashboardClient } from "./page.client";
 
@@ -24,6 +23,10 @@ export default async function AdminDashboardPage() {
           projects={data.projects}
           leads={data.leads}
           activity={data.activity}
+          finance={data.finance}
+          reports={data.reports}
+          calendar={data.calendar}
+          customers={data.customers}
         />
       </div>
     </div>
@@ -44,10 +47,8 @@ function AdminBrand({ compact = false }: { compact?: boolean }) {
 
 function AdminNavigation({
   navItems,
-  onNavigate,
 }: {
   navItems: { label: string; href: string; icon: string; count?: number }[];
-  onNavigate?: () => void;
 }) {
   return (
     <div className="flex flex-col gap-1 overflow-y-auto px-3">

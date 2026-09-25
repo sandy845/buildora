@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth/server";
 import { prisma } from "@/lib/db/prisma";
-import { DocumentType, DesignAssetType } from "@prisma/client";
+import { DocumentType, DesignAssetType } from "@/lib/types/models";
+import { validateUpload } from "@/lib/storage";
 
 export async function POST(req: NextRequest) {
   try {
@@ -46,7 +47,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Forbidden. You do not have access to this project." }, { status: 403 });
     }
 
-    const finalUrl = fileUrl || key;
+    if (typeof key !== "string" || !key.startsWith(`projects/${projectId}/`)) {
+      return NextResponse.json({ error: "Invalid storage object key." }, { status: 400 });
+    }
+    if (typeof fileUrl === "string" && fileUrl && !fileUrl.includes(key)) {
+      return NextResponse.json({ error: "File URL does not match the storage object." }, { status: 400 });
+    }
+    if (typeof contentType !== "string" || typeof fileSizeBytes !== "number") {
+      return NextResponse.json({ error: "File metadata is required." }, { status: 400 });
+    }
+    const validation = validateUpload(contentType, fileSizeBytes, category === "blueprint" ? "blueprint" : "document", fileName);
+    if (!validation.valid) return NextResponse.json({ error: validation.error }, { status: 400 });
+
+    const finalUrl = key;
 
     if (category === "blueprint") {
       // Validate or map designAssetType

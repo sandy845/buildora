@@ -23,9 +23,16 @@ export default function ForgotPasswordPage() {
     setIsSubmitting(true);
     setStatus("idle");
 
-    await new Promise((resolve) => setTimeout(resolve, 900));
-
+    const response = await fetch("/api/auth/forgot-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
     setIsSubmitting(false);
+    if (!response.ok) {
+      setStatus("error");
+      return;
+    }
     setStatus("success");
   }
 
@@ -60,7 +67,7 @@ export default function ForgotPasswordPage() {
 
           {status === "success" && (
             <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-              A demo reset link has been prepared for this email.
+              If an account exists for this email, a password reset link has been sent.
             </p>
           )}
 

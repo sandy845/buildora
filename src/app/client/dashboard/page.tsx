@@ -25,7 +25,7 @@ export default async function ClientDashboardPage() {
               CP
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-primary">Customer account</p>
+              <p className="truncate text-sm font-semibold text-primary">Client account</p>
               <p className="truncate text-xs text-muted">Buildora workspace</p>
             </div>
             <span className="text-muted transition-transform duration-300 group-open:rotate-180" aria-hidden="true">⌄</span>
@@ -38,9 +38,9 @@ export default async function ClientDashboardPage() {
             <Link href="/client/dashboard#profile" className="mt-1 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-primary transition-colors hover:bg-[#f3efe5]">
               <span className="text-[#a98032]">○</span> View profile
             </Link>
-            <Link href="/client/dashboard#settings" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-primary transition-colors hover:bg-[#f3efe5]">
+            <a href="#settings" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-primary transition-colors hover:bg-[#f3efe5]">
               <span className="text-[#a98032]">⚙</span> Edit profile
-            </Link>
+            </a>
             <Link href="/auth/login" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-red-50 hover:text-red-700">
               <span>↗</span> Sign out
             </Link>
@@ -91,7 +91,7 @@ function DashboardNavigation({
           key={item.label}
           href={item.href}
           onClick={onNavigate}
-          className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${index === 0 ? "bg-primary text-white" : "text-muted hover:bg-background hover:text-primary"}`}
+          className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 text-sm font-medium transition-all duration-200 ${index === 0 ? "border-[#d9cba8] bg-[#f3efe5] text-primary shadow-sm" : "border-transparent text-muted hover:border-[#ead9af] hover:bg-[#fffdf8] hover:text-primary hover:shadow-sm"}`}
         >
           <DashboardIcon name={item.icon} className="h-5 w-5" />
           <span className="flex-1">{item.label}</span>

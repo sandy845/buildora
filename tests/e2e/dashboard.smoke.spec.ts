@@ -23,7 +23,7 @@ test.describe("Dashboard & Workspace Smoke Tests", () => {
     await expect(page.getByText("Active projects")).toBeVisible();
     await expect(page.getByText("Overall progress")).toBeVisible();
     await expect(page.getByText("Pending approvals")).toBeVisible();
-    await expect(page.getByText("Outstanding payment")).toBeVisible();
+    await expect(page.getByText("Outstanding payment", { exact: true }).first()).toBeVisible();
 
     // Verify navigation links
     await expect(page.getByRole("link", { name: "Overview" })).toBeVisible();
@@ -67,8 +67,8 @@ test.describe("Dashboard & Workspace Smoke Tests", () => {
   test("admin dashboard renders high-level operations metrics", async ({ page }) => {
     await loginAsAdmin(page);
 
-    await expect(page.getByText("Total projects")).toBeVisible();
-    await expect(page.getByText("Active projects")).toBeVisible();
-    await expect(page.getByText("New leads")).toBeVisible();
+    await expect(page.getByText("Total projects", { exact: true })).toBeVisible();
+    await expect(page.getByText("Active projects", { exact: true })).toBeVisible();
+    await expect(page.getByText("New leads", { exact: true }).first()).toBeVisible();
   });
 });

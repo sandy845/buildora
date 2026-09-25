@@ -37,11 +37,47 @@ export function ProjectWorkspaceClient({ project }: { project: ProjectData }) {
   const [documentsList, setDocumentsList] = useState(project.documents);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [uploadCategory, setUploadCategory] = useState<"document" | "blueprint">("document");
+  const [approvalMessage, setApprovalMessage] = useState("");
+  const [messageBody, setMessageBody] = useState("");
+  const [messageStatus, setMessageStatus] = useState("");
 
   function selectTab(tab: string) {
     setActiveTab(tab);
     setIsTabMenuOpen(false);
     document.getElementById(tab.toLowerCase())?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  async function decideApproval(id: string, status: "approved" | "rejected") {
+    setApprovalMessage("");
+    const response = await fetch(`/api/client/approvals/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    if (!response.ok) {
+      const result = await response.json().catch(() => ({})) as { error?: string };
+      setApprovalMessage(result.error || "Unable to update approval.");
+      return;
+    }
+    setApprovalMessage(`Approval ${status}. Refreshing project details...`);
+    window.location.reload();
+  }
+
+  async function sendMessage() {
+    if (!messageBody.trim()) return;
+    setMessageStatus("Sending...");
+    const response = await fetch("/api/client/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ projectId: project.id, body: messageBody.trim() }),
+    });
+    const result = await response.json().catch(() => ({})) as { error?: string };
+    if (!response.ok) {
+      setMessageStatus(result.error || "Unable to send message.");
+      return;
+    }
+    setMessageBody("");
+    setMessageStatus("Message sent.");
   }
 
   return (
@@ -236,12 +272,18 @@ export function ProjectWorkspaceClient({ project }: { project: ProjectData }) {
                         {item.detail} · {item.due}
                       </p>
                     </div>
-                    <button type="button" className="shrink-0 text-xs font-bold text-primary underline underline-offset-4">
-                      Review
-                    </button>
+                    <div className="flex shrink-0 gap-2">
+                      <button type="button" onClick={() => decideApproval(item.id, "approved")} className="text-xs font-bold text-emerald-700 underline underline-offset-4">
+                        Approve
+                      </button>
+                      <button type="button" onClick={() => decideApproval(item.id, "rejected")} className="text-xs font-bold text-red-700 underline underline-offset-4">
+                        Request revision
+                      </button>
+                    </div>
                   </div>
                 ))
               )}
+              {approvalMessage && <p className="mt-4 text-xs font-semibold text-[#a98032]" role="status">{approvalMessage}</p>}
             </div>
             {project.approvals.length > 0 && (
               <p className="mt-5 border-t border-border pt-4 text-xs text-muted">
@@ -367,7 +409,11 @@ export function ProjectWorkspaceClient({ project }: { project: ProjectData }) {
           <section id="messages" className="scroll-mt-6 rounded-2xl border border-border bg-white p-5">
             <ProjectSectionHeading eyebrow="Messages" title="Project communication" action="Open messages" />
             <div className="mt-5">
-              <DashboardState type="empty" title="No unread messages" description="Your project team will share updates here." />
+              <textarea value={messageBody} onChange={(event) => setMessageBody(event.target.value)} rows={4} placeholder="Write a message to your Buildora team..." className="w-full rounded-xl border border-border bg-background p-3 text-sm outline-none transition focus:border-[#c5a059] focus:ring-2 focus:ring-[#e5c875]/40" />
+              <div className="mt-3 flex items-center justify-between gap-3">
+                <p className="text-xs text-muted" role="status">{messageStatus}</p>
+                <button type="button" onClick={sendMessage} className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#c5a059] hover:text-primary">Send message</button>
+              </div>
             </div>
           </section>
         </div>

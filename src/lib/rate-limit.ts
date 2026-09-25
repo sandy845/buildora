@@ -189,6 +189,18 @@ export const authRegisterLimiter = new RateLimiter({
   windowMs: 60 * 60_000,
 }).startPruning();
 
+/** Email verification resend: max 3 requests per IP per 15 minutes. */
+export const authVerificationLimiter = new RateLimiter({
+  limit: 3,
+  windowMs: 15 * 60_000,
+}).startPruning();
+
+/** OTP verification attempts: max 10 requests per IP per 15 minutes. */
+export const authVerificationAttemptLimiter = new RateLimiter({
+  limit: 10,
+  windowMs: 15 * 60_000,
+}).startPruning();
+
 /**
  * Extract the real client IP from a Next.js request or headers context.
  */

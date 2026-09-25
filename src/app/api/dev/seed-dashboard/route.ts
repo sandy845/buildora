@@ -26,7 +26,7 @@ export async function POST() {
   if (!user) return NextResponse.json({ error: "Please log in first." }, { status: 401 });
   if (user.role !== "customer") return NextResponse.json({ error: "Only customer accounts can be seeded." }, { status: 403 });
 
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx: any) => {
     await tx.project.upsert({
       where: { id: seedProjectId },
       update: { customerId: user.id, progress: 68, status: "in_progress", deletedAt: null },

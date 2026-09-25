@@ -58,6 +58,25 @@ export type ApprovalReminderData = {
   reviewUrl?: string;
 };
 
+export async function sendVerificationEmail(to: string, name: string, otp: string): Promise<EmailResult> {
+  return sendEmail({
+    to,
+    subject: "Verify your Buildora account",
+    html: `<p>Hi ${escapeHtml(name)},</p><p>Your Buildora verification code is:</p><p style="font-size:32px;font-weight:700;letter-spacing:8px">${otp}</p><p>This code expires in 10 minutes and can be used once.</p>`,
+    text: `Hi ${name},\n\nYour Buildora verification code is: ${otp}\n\nThis code expires in 10 minutes and can be used once.`,
+  });
+}
+
+export async function sendPasswordResetEmail(to: string, name: string, token: string): Promise<EmailResult> {
+  const link = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/auth/reset-password?token=${encodeURIComponent(token)}`;
+  return sendEmail({
+    to,
+    subject: "Reset your Buildora password",
+    html: `<p>Hi ${escapeHtml(name)},</p><p>Reset your Buildora password by clicking <a href="${link}">this link</a>.</p><p>This link expires in one hour.</p>`,
+    text: `Hi ${name},\n\nReset your Buildora password: ${link}\n\nThis link expires in one hour.`,
+  });
+}
+
 export function getEmailProviderStatus(): {
   provider: EmailProviderType;
   configured: boolean;
@@ -186,9 +205,19 @@ async function sendEmail({
     }
   }
 
+  if (process.env.NODE_ENV === "production") {
+    console.error("[email] No email provider configured in production.");
+    return { sent: false, error: "Email provider is not configured." };
+  }
+
   // 4. Local dev / test fallback
   console.info(`[email/simulated] Delivery to: ${to} | Subject: "${subject}"`);
+  console.info(`[email/simulated] Verification code or reset link: ${extractActionValue(text)}`);
   return { sent: true, provider: "simulated", simulated: true };
+}
+
+function extractActionValue(text: string) {
+  return text.match(/\b\d{6}\b/)?.[0] ?? text.match(/https?:\/\/\S+/)?.[0] ?? "(value unavailable)";
 }
 
 // ---------------------------------------------------------------------------

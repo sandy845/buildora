@@ -56,6 +56,10 @@ export function isStorageConfigured(): boolean {
   );
 }
 
+export function isMockStorageAllowed(): boolean {
+  return process.env.NODE_ENV !== "production";
+}
+
 export function getStorageProviderName(): "cloudflare-r2" | "aws-s3" | "custom-s3" | "dev-mock" {
   if (!isStorageConfigured()) return "dev-mock";
   const endpoint = process.env.STORAGE_ENDPOINT ?? "";
@@ -149,7 +153,7 @@ export function generatePresignedUploadUrl(
   const expiresAt = now.getTime() + expiresInSeconds * 1000;
 
   // Development / test fallback when S3 / R2 is not configured
-  if (!cfg) {
+  if (!cfg && isMockStorageAllowed()) {
     const mockBase = process.env.NEXT_PUBLIC_APP_URL || "";
     return {
       url: `${mockBase}/api/storage/mock-upload?key=${encodeURIComponent(key)}`,
@@ -157,6 +161,8 @@ export function generatePresignedUploadUrl(
       expiresAt,
       isMock: true,
     };
+  } else if (!cfg) {
+    return { error: "Storage is not configured." };
   }
 
   const dateStr = formatDate(now);
@@ -213,13 +219,15 @@ export function generatePresignedDownloadUrl(
   const now = new Date();
   const expiresAt = now.getTime() + expiresInSeconds * 1000;
 
-  if (!cfg) {
+  if (!cfg && isMockStorageAllowed()) {
     const mockBase = process.env.NEXT_PUBLIC_APP_URL || "";
     return {
       url: `${mockBase}/api/storage/mock-upload?key=${encodeURIComponent(key)}`,
       expiresAt,
       isMock: true,
     };
+  } else if (!cfg) {
+    return { error: "Storage is not configured." };
   }
 
   const dateStr = formatDate(now);

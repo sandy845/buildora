@@ -11,7 +11,7 @@ export function Hero() {
         fill
         className="object-cover object-center transition-transform duration-1000 ease-out group-hover:scale-110"
         sizes="100vw"
-        quality={100}
+        quality={75}
         priority
       />
       <div className="absolute inset-0 bg-linear-to-r from-[#0e1319]/90 via-[#0e1319]/55 to-[#0e1319]/20" />

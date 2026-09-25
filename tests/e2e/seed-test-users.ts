@@ -1,9 +1,8 @@
 import { randomBytes, scrypt as scryptCallback } from "node:crypto";
 import { promisify } from "node:util";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "../../src/lib/db/prisma";
 
 const scrypt = promisify(scryptCallback);
-const prisma = new PrismaClient();
 
 async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16).toString("hex");
@@ -20,7 +19,7 @@ export async function seedTestUsers() {
   // 1. Upsert test customer
   const customer = await prisma.user.upsert({
     where: { normalizedEmail: customerEmail },
-    update: { passwordHash, accountStatus: "active", role: "customer" },
+    update: { passwordHash, accountStatus: "active", role: "customer", emailVerifiedAt: new Date() },
     create: {
       name: "Aarav Customer",
       email: customerEmail,
@@ -29,13 +28,14 @@ export async function seedTestUsers() {
       passwordHash,
       role: "customer",
       accountStatus: "active",
+      emailVerifiedAt: new Date(),
     },
   });
 
   // 2. Upsert test admin
   await prisma.user.upsert({
     where: { normalizedEmail: adminEmail },
-    update: { passwordHash, accountStatus: "active", role: "admin" },
+    update: { passwordHash, accountStatus: "active", role: "admin", emailVerifiedAt: new Date() },
     create: {
       name: "Buildora Administrator",
       email: adminEmail,
@@ -44,6 +44,7 @@ export async function seedTestUsers() {
       passwordHash,
       role: "admin",
       accountStatus: "active",
+      emailVerifiedAt: new Date(),
     },
   });
 

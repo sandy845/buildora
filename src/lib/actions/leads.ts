@@ -1,6 +1,6 @@
 "use server";
 
-import { prisma } from "../db/prisma.ts";
+import { firestoreFindOne } from "../firebase/firestore";
 import { createLeadService } from "../services/core.ts";
 import { sendLeadConfirmationEmail, sendNewLeadAlertEmail } from "../email.ts";
 import { leadFormLimiter, getClientIp } from "../rate-limit.ts";
@@ -74,14 +74,9 @@ export async function submitContactLeadAction(
   try {
     let serviceConnect: { connect: { id: string } } | undefined;
     if (serviceName) {
-      const matchedService = await prisma.service.findFirst({
-        where: {
-          OR: [
-            { name: { equals: serviceName, mode: "insensitive" } },
-            { slug: { equals: serviceName.toLowerCase().replace(/[^a-z0-9]+/g, "-"), mode: "insensitive" } },
-          ],
-          deletedAt: null,
-        },
+      const slug = serviceName.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      const matchedService = await firestoreFindOne<{ id: string }>("services", {
+        where: [{ field: "slug", operator: "==", value: slug }],
       });
       if (matchedService) {
         serviceConnect = { connect: { id: matchedService.id } };

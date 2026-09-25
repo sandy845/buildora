@@ -44,7 +44,7 @@ export default function AboutPage() {
             <div className="group relative mx-auto w-full max-w-lg">
               <div className="absolute -inset-5 rounded-[2.5rem] border border-[#e5c875]/20 animate-[spin_18s_linear_infinite]" />
               <div className="relative aspect-4/5 overflow-hidden rounded-4xl border border-white/80 bg-primary shadow-2xl shadow-primary/20 transition-all duration-700 ease-out group-hover:-translate-y-2 group-hover:shadow-[#c5a059]/30">
-                <Image src="/assets/images/buildora-hero-home.webp" alt="Buildora contemporary architecture" fill quality={100} className="object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105 group-hover:brightness-105 group-hover:saturate-110" sizes="(max-width: 1024px) 100vw, 45vw" />
+                <Image src="/assets/images/buildora-hero-home.webp" alt="Buildora contemporary architecture" fill quality={75} className="object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105 group-hover:brightness-105 group-hover:saturate-110" sizes="(max-width: 1024px) 100vw, 45vw" />
                 <div className="absolute inset-0 bg-linear-to-t from-primary/70 via-transparent to-transparent" />
                 <div className="pointer-events-none absolute inset-0 ring-1 ring-inset ring-white/20 transition-colors duration-700 group-hover:ring-[#e5c875]/60" />
                 <div className="absolute bottom-6 left-6 right-6 rounded-2xl border border-white/25 bg-primary/70 p-5 text-white backdrop-blur-md">
@@ -57,18 +57,43 @@ export default function AboutPage() {
         </Container>
       </Section>
 
-      <Section className="bg-[#f8f6f0]">
+      <Section className="relative isolate overflow-hidden bg-[#f8f6f0] py-20">
+        <div className="pointer-events-none absolute left-1/2 top-0 -translate-x-1/2 h-96 w-[50rem] rounded-full bg-gradient-to-b from-[#e5c875]/15 via-[#c5a059]/5 to-transparent blur-3xl" aria-hidden="true" />
         <Container>
-          <div className="grid gap-6 md:grid-cols-3">
+          <div className="grid gap-7 md:grid-cols-3">
             {values.map((value, index) => (
-              <article key={value.title} className="rounded-[1.75rem] border border-border bg-white p-6">
-                <div className="flex items-center justify-between">
-                  <span className="gold-gradient-bg flex h-11 w-11 items-center justify-center rounded-2xl text-sm font-black text-primary">{String(index + 1).padStart(2, "0")}</span>
-                  <span className="text-xs font-bold uppercase tracking-[0.18em] text-gold">Buildora</span>
+              <article
+                key={value.title}
+                className="group relative overflow-hidden rounded-[2rem] border border-[#c5a059]/35 bg-white/40 p-8 shadow-lg shadow-[#c5a059]/5 backdrop-blur-xl transition-all duration-500 ease-out hover:-translate-y-2.5 hover:border-[#c5a059] hover:bg-white/75 hover:shadow-[0_20px_45px_-12px_rgba(197,160,89,0.3),0_0_28px_rgba(229,201,125,0.22)]"
+              >
+                {/* Golden ambient radial light */}
+                <div
+                  className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-gradient-to-br from-[#e5c875]/30 via-[#c5a059]/10 to-transparent blur-2xl transition-all duration-700 ease-out group-hover:scale-150 group-hover:from-[#e5c875]/50 group-hover:opacity-100"
+                  aria-hidden="true"
+                />
+
+                <div className="relative flex items-center justify-between">
+                  {/* Hollow gold number pill */}
+                  <span className="relative flex h-12 w-12 items-center justify-center rounded-2xl border border-[#c5a059]/60 bg-gradient-to-br from-white/90 via-[#faf7ee]/80 to-[#e5c875]/20 font-mono text-base font-black text-[#9e7626] shadow-[0_2px_12px_rgba(197,160,89,0.15)] backdrop-blur-md transition-all duration-500 group-hover:scale-110 group-hover:rotate-3 group-hover:border-[#c5a059] group-hover:shadow-[0_0_18px_rgba(229,201,125,0.45)]">
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+                  
+                  {/* Subtle golden status beacon */}
+                  <span className="flex h-2.5 w-2.5 items-center justify-center">
+                    <span className="h-2 w-2 rounded-full bg-[#c5a059]/50 transition-all duration-500 group-hover:scale-150 group-hover:bg-[#e5c875] group-hover:shadow-[0_0_10px_#e5c875]" />
+                  </span>
                 </div>
-                <h2 className="mt-6 text-xl font-semibold tracking-[-0.04em] text-primary">{value.title}</h2>
-                <p className="mt-3 text-sm leading-6 text-muted">{value.description}</p>
-                <div className="mt-6 h-1 w-12 rounded-full bg-gold transition-all duration-500 hover:w-full" />
+
+                <h2 className="relative mt-7 text-xl font-bold tracking-tight text-primary transition-colors duration-300 group-hover:text-[#9e7626]">
+                  {value.title}
+                </h2>
+                
+                <p className="relative mt-3 text-sm leading-relaxed text-muted">
+                  {value.description}
+                </p>
+
+                {/* Animated expandable golden beam */}
+                <div className="relative mt-7 h-1 w-12 rounded-full bg-gradient-to-r from-[#c5a059] via-[#e5c875] to-[#c5a059] transition-all duration-500 ease-out group-hover:w-full group-hover:shadow-[0_0_12px_rgba(229,201,125,0.8)]" />
               </article>
             ))}
           </div>

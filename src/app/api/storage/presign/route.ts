@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import {
   buildObjectKey,
   generatePresignedUploadUrl,
+  isMockStorageAllowed,
   validateUpload,
 } from "@/lib/storage";
 
@@ -63,6 +64,9 @@ export async function POST(req: NextRequest) {
 
     // Generate AWS S3 / Cloudflare R2 presigned PUT URL
     const result = generatePresignedUploadUrl(objectKey, contentType);
+    if ("isMock" in result && result.isMock && !isMockStorageAllowed()) {
+      return NextResponse.json({ error: "Storage is not configured." }, { status: 503 });
+    }
     if ("error" in result) {
       return NextResponse.json({ error: result.error }, { status: 500 });
     }

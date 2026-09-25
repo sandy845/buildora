@@ -48,7 +48,7 @@ export function FeaturedProjects() {
                     src={project.image}
                     alt={project.title}
                     fill
-                    quality={100}
+                    quality={75}
                     className="relative z-0 object-cover transition-transform duration-700 ease-out group-hover:scale-110 group-hover:brightness-105 group-hover:saturate-110"
                     sizes="(max-width: 768px) 100vw, 50vw"
                   />
