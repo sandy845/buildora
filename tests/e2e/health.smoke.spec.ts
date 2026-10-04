@@ -8,7 +8,7 @@ test.describe("Production Health Check API", () => {
     const data = await res.json();
     expect(["healthy", "degraded"]).toContain(data.status);
     expect(data.timestamp).toBeTruthy();
-    expect(typeof data.uptimeSeconds).toBe("number");
+    expect(typeof data.system.uptimeSeconds).toBe("number");
 
     // Database check
     expect(data.services.database.status).toBe("connected");
