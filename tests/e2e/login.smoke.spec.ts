@@ -31,6 +31,7 @@ test.describe("Authentication Smoke Tests", () => {
 
     // Rejection notification
     await expect(page.getByText(/Invalid email or password/i)).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("button", { name: "Log in" })).toBeEnabled();
   });
 
   test("register link navigates to register page", async ({ page }) => {

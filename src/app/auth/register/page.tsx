@@ -50,20 +50,25 @@ export default function RegisterPage() {
     setServerError("");
     setSubmitState("idle");
 
-    const result = await signInWithGoogle();
-    setIsGoogleSubmitting(false);
+    try {
+      const result = await signInWithGoogle();
+      if (!result.success) {
+        setServerError(result.error || "Failed to sign up with Google.");
+        setSubmitState("error");
+        return;
+      }
 
-    if (!result.success) {
-      setServerError(result.error || "Failed to sign up with Google.");
+      const role = (result.user as { role?: string })?.role;
+      if (role === "admin") {
+        router.push("/admin/dashboard");
+      } else {
+        router.push("/client/dashboard");
+      }
+    } catch {
+      setServerError("Google sign-up could not be completed. Please try again.");
       setSubmitState("error");
-      return;
-    }
-
-    const role = (result.user as { role?: string })?.role;
-    if (role === "admin") {
-      router.push("/admin/dashboard");
-    } else {
-      router.push("/client/dashboard");
+    } finally {
+      setIsGoogleSubmitting(false);
     }
   }
 
@@ -81,23 +86,34 @@ export default function RegisterPage() {
     setSubmitState("idle");
     setServerError("");
 
-    const result = await registerUser(form);
-    setIsSubmitting(false);
-    if (result.error) {
-      setServerError(result.error);
-      setSubmitState("error");
-      return;
-    }
+    try {
+      const result = await registerUser(form);
+      if (result.error) {
+        setServerError(result.error);
+        setSubmitState("error");
+        return;
+      }
 
-    setSubmitState("success");
+      setSubmitState("success");
+    } catch {
+      setServerError("Registration is temporarily unavailable. Please try again later.");
+      setSubmitState("error");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   async function handleResendVerification() {
     setIsSubmitting(true);
     setResendState("");
-    const result = await resendVerificationEmail(form.email);
-    setIsSubmitting(false);
-    setResendState(result.error || "Verification email sent. Check your inbox or the development server terminal.");
+    try {
+      const result = await resendVerificationEmail(form.email);
+      setResendState(result.error || "Verification email sent. Check your inbox.");
+    } catch {
+      setResendState("Could not send the verification email. Please try again later.");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -232,7 +248,7 @@ export default function RegisterPage() {
 
           {submitState === "success" && (
             <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-              Account created. You can now log in.
+              Account created. Check your email for the verification code, then <Link href="/auth/verify" className="font-medium underline">verify your account</Link> before logging in.
             </p>
           )}
 

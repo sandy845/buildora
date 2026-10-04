@@ -67,7 +67,24 @@ FIREBASE_SERVICE_ACCOUNT_KEY='{"type":"service_account","project_id":"...","priv
 
 ---
 
-## 5. Authorization & Roles
+## 5. Configure the Vercel deployment
+
+In Vercel, open the Buildora project, then go to **Settings -> Environment Variables**. Add the Firebase client variables from section 3 and the Firebase Admin credentials from section 4. Also add:
+
+```text
+AUTH_SECRET=<a unique random value of at least 32 characters>
+RESEND_API_KEY=<your Resend API key>
+EMAIL_FROM=<a sender address verified with your email provider>
+NEXT_PUBLIC_APP_URL=https://your-production-domain
+```
+
+Use a verified Resend sender, or configure Postmark (`POSTMARK_SERVER_TOKEN`) or SMTP (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`) instead. Keep all Admin credentials, `AUTH_SECRET`, and email-provider tokens server-only; do not use the `NEXT_PUBLIC_` prefix for them or paste them into chat. Apply these variables to **Production** (and Preview if needed), save, and redeploy the latest commit so the deployment picks them up.
+
+Before trying registration, open `https://your-production-domain/api/health`. The database should report `connected`; a missing or invalid Firestore configuration must be fixed in Vercel/Firebase before account registration can persist. Registration sends a verification code and users must complete `/auth/verify` before logging in.
+
+---
+
+## 6. Authorization & Roles
 
 Buildora enforces role-based access control (RBAC):
 - **`customer`**: Access to `/client/dashboard`, their project status, quotations, documents, and messages.
@@ -85,7 +102,7 @@ When a user registers or logs in via Google:
 
 ---
 
-## 6. Testing & Running Locally
+## 7. Testing & Running Locally
 
 1. Run the development server:
    ```bash

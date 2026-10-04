@@ -95,6 +95,18 @@ function getDatabase() {
   return process.env.E2E_TEST === "1" ? null : getAdminDb();
 }
 
+function canUseMemoryFallback() {
+  return (
+    process.env.NODE_ENV !== "production" ||
+    process.env.E2E_TEST === "1" ||
+    process.env.NEXT_PHASE === "phase-production-build"
+  );
+}
+
+function requireDatabase() {
+  throw new Error("Firestore is not configured for this deployment.");
+}
+
 function getMemoryCollection(collectionName: string): Map<string, FirestoreDocument> {
   let col = inMemoryStore.get(collectionName);
   if (!col) {
@@ -145,6 +157,7 @@ export async function firestoreCreate<T extends Record<string, unknown>>(
   };
 
   if (!db) {
+    if (!canUseMemoryFallback()) requireDatabase();
     getMemoryCollection(collectionName).set(id, record);
     return record;
   }
@@ -153,6 +166,7 @@ export async function firestoreCreate<T extends Record<string, unknown>>(
     await db.collection(collectionName).doc(id).set(record);
     return record;
   } catch (error) {
+    if (!canUseMemoryFallback()) throw error;
     console.warn(`[firestore] Falling back to memory for ${collectionName}.create:`, error);
     getMemoryCollection(collectionName).set(id, record);
     return record;
@@ -165,6 +179,7 @@ export async function firestoreGet<T extends FirestoreDocument = FirestoreDocume
 ): Promise<T | null> {
   const db = getDatabase();
   if (!db) {
+    if (!canUseMemoryFallback()) requireDatabase();
     const item = getMemoryCollection(collectionName).get(id);
     return (item as T) || null;
   }
@@ -172,13 +187,14 @@ export async function firestoreGet<T extends FirestoreDocument = FirestoreDocume
   try {
     const docSnap = await db.collection(collectionName).doc(id).get();
     if (!docSnap.exists) {
-      // Check memory fallback
+      if (!canUseMemoryFallback()) return null;
       const memItem = getMemoryCollection(collectionName).get(id);
       return (memItem as T) || null;
     }
     const data = docSnap.data() as T;
     return { ...data, id: docSnap.id };
   } catch (error) {
+    if (!canUseMemoryFallback()) throw error;
     console.warn(`[firestore] Falling back to memory for ${collectionName}.get:`, error);
     const item = getMemoryCollection(collectionName).get(id);
     return (item as T) || null;
@@ -192,6 +208,7 @@ export async function firestoreFind<T extends FirestoreDocument = FirestoreDocum
   const db = getDatabase();
 
   if (!db) {
+    if (!canUseMemoryFallback()) requireDatabase();
     return filterInMemory<T>(collectionName, options);
   }
 
@@ -221,6 +238,7 @@ export async function firestoreFind<T extends FirestoreDocument = FirestoreDocum
     const snapshot = await q.get();
     return snapshot.docs.map((d) => ({ ...d.data(), id: d.id } as T));
   } catch (error) {
+    if (!canUseMemoryFallback()) throw error;
     console.warn(`[firestore] Query failed on ${collectionName}, using memory fallback:`, error);
     return filterInMemory<T>(collectionName, options);
   }
@@ -244,6 +262,7 @@ export async function firestoreUpdate<T extends Record<string, unknown>>(
   const updatePayload = { ...data, updatedAt: now };
 
   if (!db) {
+    if (!canUseMemoryFallback()) requireDatabase();
     const existing = getMemoryCollection(collectionName).get(id) || { id };
     const updated = { ...existing, ...updatePayload };
     getMemoryCollection(collectionName).set(id, updated);
@@ -255,6 +274,7 @@ export async function firestoreUpdate<T extends Record<string, unknown>>(
     const snap = await db.collection(collectionName).doc(id).get();
     return { ...snap.data(), id: snap.id } as FirestoreDocument;
   } catch (error) {
+    if (!canUseMemoryFallback()) throw error;
     console.warn(`[firestore] Falling back to memory for ${collectionName}.update:`, error);
     const existing = getMemoryCollection(collectionName).get(id) || { id };
     const updated = { ...existing, ...updatePayload };
@@ -275,13 +295,15 @@ export async function firestoreHardDelete(
   id: string
 ): Promise<boolean> {
   const db = getDatabase();
-  getMemoryCollection(collectionName).delete(id);
+  if (!db && !canUseMemoryFallback()) requireDatabase();
+  if (canUseMemoryFallback()) getMemoryCollection(collectionName).delete(id);
 
   if (db) {
     try {
       await db.collection(collectionName).doc(id).delete();
       return true;
     } catch (err) {
+      if (!canUseMemoryFallback()) throw err;
       console.warn(`[firestore] Failed to delete document ${id} from ${collectionName}:`, err);
     }
   }

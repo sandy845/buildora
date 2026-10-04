@@ -18,6 +18,7 @@ test.describe("Production Health Check API", () => {
     // Storage & Email checks
     expect(data.services.storage).toHaveProperty("provider");
     expect(data.services.email).toHaveProperty("provider");
+    expect(typeof data.services.auth.sessionSecretConfigured).toBe("boolean");
     expect(data.services.rateLimiter).toHaveProperty("backend");
   });
 });

@@ -22,18 +22,24 @@ export default function VerifyPage() {
     setIsSubmitting(true);
     setStatus("idle");
 
-    const response = await fetch("/api/auth/verify", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token: otp }),
-    });
-    setIsSubmitting(false);
-    if (response.ok) {
-      setStatus("success");
-    } else {
-      const result = await response.json().catch(() => ({})) as { error?: string };
-      setError(result.error || "That code is invalid or expired.");
+    try {
+      const response = await fetch("/api/auth/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: otp }),
+      });
+      if (response.ok) {
+        setStatus("success");
+      } else {
+        const result = await response.json().catch(() => ({})) as { error?: string };
+        setError(result.error || "That code is invalid or expired.");
+        setStatus("error");
+      }
+    } catch {
+      setError("Verification is temporarily unavailable. Please try again later.");
       setStatus("error");
+    } finally {
+      setIsSubmitting(false);
     }
   }
 

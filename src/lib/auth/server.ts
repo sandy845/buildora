@@ -9,7 +9,7 @@ import { validateLogin, validateRegister } from "@/lib/auth";
 import { authLoginLimiter, authRegisterLimiter, authVerificationLimiter, getClientIp } from "@/lib/rate-limit";
 import { sendPasswordResetEmail, sendVerificationEmail } from "@/lib/email";
 import { getAdminAuth } from "@/lib/firebase/admin";
-import { firestoreCreate, firestoreGet, firestoreFindOne, firestoreUpdate, firestoreHardDelete } from "@/lib/firebase/firestore";
+import { firestoreCreate, firestoreFindOne, firestoreUpdate } from "@/lib/firebase/firestore";
 import type { UserRole } from "@/lib/types/models";
 
 const scrypt = promisify(scryptCallback);
@@ -35,8 +35,11 @@ export type AuthActionState = {
 };
 
 function getAuthSecret() {
-  const secret = process.env.AUTH_SECRET || "buildora_super_secret_session_key_32_chars_minimum_length_fallback";
-  return secret;
+  const secret = process.env.AUTH_SECRET;
+  if (process.env.NODE_ENV === "production" && (!secret || secret.length < 32)) {
+    throw new Error("AUTH_SECRET must be configured with at least 32 characters in production.");
+  }
+  return secret || "buildora_super_secret_session_key_32_chars_minimum_length_fallback";
 }
 
 function encode(value: string) {
@@ -221,7 +224,13 @@ export async function registerUser(values: Record<string, unknown>): Promise<Aut
   const phone = String(values.phone || "").trim();
   const password = String(values.password || "");
 
-  const existing = await getUser({ normalizedEmail: email });
+  let existing: Awaited<ReturnType<typeof getUser>>;
+  try {
+    existing = await getUser({ normalizedEmail: email });
+  } catch (error) {
+    console.error("[auth/register] Failed to query the user store:", error);
+    return { error: "Registration is temporarily unavailable because account storage could not be reached." };
+  }
   if (existing) {
     return {
       error: existing.emailVerifiedAt
@@ -255,32 +264,43 @@ export async function registerUser(values: Record<string, unknown>): Promise<Aut
   const derivedKey = (await scrypt(password, salt, 64)) as Buffer;
   const passwordHash = `scrypt:${salt}:${derivedKey.toString("hex")}`;
 
-  const created = await createUser({
-    id: firebaseUid,
-    name,
-    email: String(values.email || "").trim(),
-    normalizedEmail: email,
-    phone,
-    passwordHash,
-    role: "customer",
-    accountStatus: "active",
-  });
+  let created: Awaited<ReturnType<typeof createUser>>;
+  let rawToken: string;
+  let emailResult: Awaited<ReturnType<typeof sendVerificationEmail>>;
+  try {
+    created = await createUser({
+      id: firebaseUid,
+      name,
+      email: String(values.email || "").trim(),
+      normalizedEmail: email,
+      phone,
+      passwordHash,
+      role: "customer",
+      accountStatus: "active",
+    });
 
-  const rawToken = generateVerificationOtp();
-  await firestoreCreate("emailVerificationTokens", {
-    userId: created.id,
-    tokenHash: createHash("sha256").update(rawToken).digest("hex"),
-    expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
-    usedAt: null,
-  });
+    rawToken = generateVerificationOtp();
+    await firestoreCreate("emailVerificationTokens", {
+      userId: created.id,
+      tokenHash: createHash("sha256").update(rawToken).digest("hex"),
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+      usedAt: null,
+    });
 
-  const emailResult = await sendVerificationEmail(email, name, rawToken);
+    emailResult = await sendVerificationEmail(email, name, rawToken);
+  } catch (error) {
+    console.error("[auth/register] Failed to create the account or verification token:", error);
+    return { error: "Registration could not be completed. Please check the deployment configuration and try again." };
+  }
   if (!emailResult.sent) {
     // If email is not configured in local dev, allow automatic activation so user can log in
     if (process.env.NODE_ENV !== "production") {
       await updateUser({ id: created.id }, { emailVerifiedAt: new Date().toISOString() });
       return { success: true };
     }
+    return {
+      error: "Your account was created, but we could not send the verification email. Configure email delivery or use Resend verification email after it is available.",
+    };
   }
 
   return { success: true };
@@ -294,21 +314,32 @@ export async function resendVerificationEmail(emailValue: string): Promise<AuthA
     return { error: `Too many verification requests. Please try again in ${minutes} minutes.` };
   }
 
-  const user = await getUser({ normalizedEmail: email });
+  let user: Awaited<ReturnType<typeof getUser>>;
+  try {
+    user = await getUser({ normalizedEmail: email });
+  } catch (error) {
+    console.error("[auth/verification] Failed to query the user store:", error);
+    return { error: "Verification email service is temporarily unavailable." };
+  }
   if (!user || user.accountStatus !== "active" || user.emailVerifiedAt) {
     return { error: "No unverified active account was found for this email." };
   }
 
   const rawToken = generateVerificationOtp();
   const tokenHash = createHash("sha256").update(rawToken).digest("hex");
-  await firestoreCreate("emailVerificationTokens", {
-    userId: user.id,
-    tokenHash,
-    expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
-    usedAt: null,
-  });
-
-  const result = await sendVerificationEmail(user.email, user.name, rawToken);
+  let result: Awaited<ReturnType<typeof sendVerificationEmail>>;
+  try {
+    await firestoreCreate("emailVerificationTokens", {
+      userId: user.id,
+      tokenHash,
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+      usedAt: null,
+    });
+    result = await sendVerificationEmail(user.email, user.name, rawToken);
+  } catch (error) {
+    console.error("[auth/verification] Failed to create token or send email:", error);
+    return { error: "Unable to send the verification email. Please try again later." };
+  }
   if (!result.sent && process.env.NODE_ENV === "production") {
     return { error: "Unable to send the verification email. Please try again later." };
   }
@@ -347,7 +378,13 @@ export async function loginUser(values: Record<string, unknown>): Promise<AuthAc
   const email = String(values.email || "").trim().toLowerCase();
   const password = String(values.password || "");
 
-  const user = await getUser({ normalizedEmail: email });
+  let user: Awaited<ReturnType<typeof getUser>>;
+  try {
+    user = await getUser({ normalizedEmail: email });
+  } catch (error) {
+    console.error("[auth/login] Failed to query the user store:", error);
+    return { error: "Sign-in is temporarily unavailable because account storage could not be reached." };
+  }
   if (!user || user.accountStatus !== "active" || user.deletedAt) {
     return { error: "Invalid email or password." };
   }
@@ -363,8 +400,13 @@ export async function loginUser(values: Record<string, unknown>): Promise<AuthAc
     return { error: "Invalid email or password." };
   }
 
-  await updateUser({ id: user.id }, { lastLoginAt: new Date().toISOString() });
-  await setSession(user.id, user.role, user.email);
+  try {
+    await updateUser({ id: user.id }, { lastLoginAt: new Date().toISOString() });
+    await setSession(user.id, user.role, user.email);
+  } catch (error) {
+    console.error("[auth/login] Failed to update login state or create a session:", error);
+    return { error: "Sign-in is temporarily unavailable. Please check the deployment configuration and try again." };
+  }
 
   return { success: true, role: user.role };
 }

@@ -29,20 +29,25 @@ export default function LoginPage() {
     setServerError("");
     setSubmitState("idle");
 
-    const result = await signInWithGoogle();
-    setIsGoogleSubmitting(false);
+    try {
+      const result = await signInWithGoogle();
+      if (!result.success) {
+        setServerError(result.error || "Failed to sign in with Google.");
+        setSubmitState("error");
+        return;
+      }
 
-    if (!result.success) {
-      setServerError(result.error || "Failed to sign in with Google.");
+      const role = (result.user as { role?: string })?.role;
+      if (role === "admin") {
+        router.push("/admin/dashboard");
+      } else {
+        router.push("/client/dashboard");
+      }
+    } catch {
+      setServerError("Google sign-in could not be completed. Please try again.");
       setSubmitState("error");
-      return;
-    }
-
-    const role = (result.user as { role?: string })?.role;
-    if (role === "admin") {
-      router.push("/admin/dashboard");
-    } else {
-      router.push("/client/dashboard");
+    } finally {
+      setIsGoogleSubmitting(false);
     }
   }
 
@@ -60,18 +65,24 @@ export default function LoginPage() {
     setSubmitState("idle");
     setServerError("");
 
-    const result = await loginUser(form);
-    setIsSubmitting(false);
-    if (result.error) {
-      setServerError(result.error);
-      setSubmitState("error");
-      return;
-    }
+    try {
+      const result = await loginUser(form);
+      if (result.error) {
+        setServerError(result.error);
+        setSubmitState("error");
+        return;
+      }
 
-    if (result.role === "admin") {
-      router.push("/admin/dashboard");
-    } else {
-      router.push("/client/dashboard");
+      if (result.role === "admin") {
+        router.push("/admin/dashboard");
+      } else {
+        router.push("/client/dashboard");
+      }
+    } catch {
+      setServerError("Sign-in is temporarily unavailable. Please try again later.");
+      setSubmitState("error");
+    } finally {
+      setIsSubmitting(false);
     }
   }
 

@@ -23,9 +23,12 @@ export async function GET() {
       dbLatencyMs = Date.now() - dbStart;
       dbStatus = "connected";
     } else {
-      // In-memory fallback mode
-      dbLatencyMs = 0;
-      dbStatus = "connected";
+      if (process.env.E2E_TEST === "1") {
+        dbLatencyMs = 0;
+        dbStatus = "connected";
+      } else {
+        dbError = "Firebase Admin credentials are not configured.";
+      }
     }
   } catch (err: unknown) {
     dbStatus = "disconnected";
@@ -39,6 +42,9 @@ export async function GET() {
 
   // 3. Email provider status
   const emailStatus = getEmailProviderStatus();
+  const sessionSecretConfigured = Boolean(
+    process.env.AUTH_SECRET && process.env.AUTH_SECRET.length >= 32
+  );
 
   // 4. Rate limiter backend
   const rateLimitBackend = isRedisConfigured() ? "redis" : "in-memory";
@@ -51,7 +57,10 @@ export async function GET() {
     heapTotalMb: Math.round(memoryUsage.heapTotal / 1024 / 1024),
   };
 
-  const isHealthy = dbStatus === "connected";
+  const isHealthy =
+    dbStatus === "connected" &&
+    (process.env.NODE_ENV !== "production" ||
+      (sessionSecretConfigured && emailStatus.configured));
   const totalDurationMs = Date.now() - startTime;
 
   return NextResponse.json(
@@ -73,6 +82,9 @@ export async function GET() {
           provider: storageProvider,
         },
         email: emailStatus,
+        auth: {
+          sessionSecretConfigured,
+        },
         rateLimiter: {
           backend: rateLimitBackend,
         },
