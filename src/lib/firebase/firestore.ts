@@ -1,5 +1,7 @@
 import { getAdminDb } from "./admin";
-import type { Query, WhereFilterOp, DocumentData } from "firebase-admin/firestore";export type FirestoreDocument = {
+import type { Query, WhereFilterOp } from "firebase-admin/firestore";
+
+export type FirestoreDocument = {
   id: string;
   createdAt?: string | Date;
   updatedAt?: string | Date;
@@ -141,12 +143,12 @@ export async function firestoreFind<T extends FirestoreDocument = FirestoreDocum
   }
 
   try {
-    let q: FirebaseFirestore.Query = db.collection(collectionName);
+    let q: Query = db.collection(collectionName);
 
     if (options?.where) {
       for (const filter of options.where) {
         if (filter.value !== undefined) {
-          q = q.where(filter.field, filter.operator as FirebaseFirestore.WhereFilterOp, filter.value);
+          q = q.where(filter.field, filter.operator as WhereFilterOp, filter.value);
         }
       }
     }
@@ -279,4 +281,3 @@ function filterInMemory<T extends FirestoreDocument>(
 
   return results;
 }
-

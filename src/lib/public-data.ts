@@ -74,10 +74,13 @@ export async function getPublicProjects() {
 }
 
 export async function getPublicProject(slug: string) {
+  const staticProject = getStaticProjectBySlug(slug);
+  if (staticProject) return staticProject;
+
   const projects = await listPortfolioProjectService({
     where: { slug, published: true },
     include: { gallery: { orderBy: { sortOrder: "asc" } } },
     take: 1,
   });
-  return projects[0] ? toProject(projects[0]) : getStaticProjectBySlug(slug) ?? null;
+  return projects[0] ? toProject(projects[0]) : null;
 }
