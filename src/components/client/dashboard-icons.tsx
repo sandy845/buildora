@@ -20,6 +20,8 @@ export function DashboardIcon({ name, className = "h-5 w-5" }: DashboardIconProp
       return <svg viewBox="0 0 24 24" {...common}><path d="M4 19V5M4 19h17M8 15l3-4 3 2 5-6" /></svg>;
     case "calendar":
       return <svg viewBox="0 0 24 24" {...common}><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M7 3v4M17 3v4M3 10h18" /></svg>;
+    case "user":
+      return <svg viewBox="0 0 24 24" {...common}><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg>;
     case "check":
       return <svg viewBox="0 0 24 24" {...common}><circle cx="12" cy="12" r="9" /><path d="m8 12 2.5 2.5L16 9" /></svg>;
     case "settings":

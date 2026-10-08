@@ -13,7 +13,7 @@ export const dashboardNavItems: DashboardNavItem[] = [
   { label: "Payments", href: "/client/dashboard#payments", icon: "card" },
   { label: "Messages", href: "/client/dashboard#messages", icon: "message", count: 2 },
   { label: "Notifications", href: "/client/dashboard#notifications", icon: "bell", count: 3 },
-  { label: "Settings", href: "/client/dashboard#settings", icon: "settings" },
+  { label: "Settings", href: "/client/profile", icon: "settings" },
 ];
 
 export const dashboardStats = [

@@ -51,7 +51,10 @@ export default function RegisterPage() {
     setSubmitState("idle");
 
     try {
-      const result = await signInWithGoogle();
+      const result = await signInWithGoogle({
+        name: form.name.trim() || undefined,
+        email: form.email.trim() || undefined,
+      });
       if (!result.success) {
         setServerError(result.error || "Failed to sign up with Google.");
         setSubmitState("error");
@@ -95,6 +98,15 @@ export default function RegisterPage() {
       }
 
       setSubmitState("success");
+      const userEmail = form.email.trim();
+      const userName = form.name.trim();
+      if (typeof window !== "undefined") {
+        localStorage.setItem("buildora_last_registered_email", userEmail);
+        localStorage.setItem("buildora_last_registered_name", userName);
+        localStorage.setItem("buildora_dev_google_email", userEmail);
+        localStorage.setItem("buildora_dev_google_name", userName);
+      }
+      router.push(`/auth/login?registered=true${userEmail ? `&email=${encodeURIComponent(userEmail)}` : ""}`);
     } catch {
       setServerError("Registration is temporarily unavailable. Please try again later.");
       setSubmitState("error");
@@ -248,16 +260,16 @@ export default function RegisterPage() {
 
           {submitState === "success" && (
             <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-              Account created. Check your email for the verification code, then <Link href="/auth/verify" className="font-medium underline">verify your account</Link> before logging in.
+              Account created successfully! Redirecting to login...
             </p>
           )}
 
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || submitState === "success"}
             className="inline-flex w-full items-center justify-center rounded-full bg-primary px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-[#2a2a2a] disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {isSubmitting ? "Creating account..." : "Create account"}
+            {isSubmitting ? "Creating account..." : submitState === "success" ? "Redirecting to login..." : "Create account"}
           </button>
         </form>
 

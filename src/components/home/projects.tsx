@@ -11,75 +11,79 @@ export function FeaturedProjects() {
   const projects = getHomeProjects();
 
   return (
-    <section className="relative border-b border-[#e4dec8] bg-[#f8f6f0] py-16 lg:py-20">
+    <section className="relative border-b border-[#e4dec8] bg-[#f8f6f0] py-18 lg:py-24">
       <Container>
         {/* Section Title Header */}
-        <div className="flex flex-col justify-between gap-5 border-b border-[#e4dec8] pb-7 md:flex-row md:items-end md:pb-8">
+        <div className="flex flex-col justify-between gap-5 border-b border-[#e4dec8] pb-8 md:flex-row md:items-end">
           <div>
-            <span className="text-xs font-extrabold uppercase tracking-[0.22em] text-[#c5a059]">
-              Selected Works
-            </span>
-            <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-[#0e1319] sm:text-4xl lg:text-5xl">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#c5a059]/35 bg-white px-3.5 py-1 text-[11px] font-mono font-bold uppercase tracking-[0.2em] text-[#a98032] shadow-xs">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#c5a059]" />
+              Selected Portfolio // Architectural Works
+            </div>
+            <h2 className="mt-4 text-3xl font-extrabold tracking-tight text-[#0a0e14] sm:text-4xl lg:text-5xl">
               Architecture in practice.
             </h2>
           </div>
           <Link
             href="/projects"
-            className="group inline-flex items-center gap-2 rounded-full border border-[#0e1319] bg-[#0e1319] px-6 py-3 text-xs font-bold uppercase tracking-[0.16em] text-white shadow-md transition-all duration-300 hover:bg-[#c5a059] hover:text-[#0e1319]"
+            className="group inline-flex items-center gap-2 rounded-full border border-[#0a0e14] bg-[#0a0e14] px-6 py-3 text-xs font-bold uppercase tracking-[0.16em] text-white shadow-md transition-all duration-300 hover:bg-[#c5a059] hover:text-[#0a0e14] hover:shadow-lg active:scale-95"
           >
             <span>View Full Portfolio</span>
-            <svg className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-            </svg>
+            <span className="transition-transform duration-300 group-hover:translate-x-1">→</span>
           </Link>
         </div>
 
         {/* Portfolio Cards Grid */}
-        <div className="mt-8 grid gap-6 md:grid-cols-2">
-          {projects.map((project) => {
+        <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {projects.map((project, index) => {
             const slug = getSlug(project.title);
             return (
               <article
                 key={project.title}
-                className="image-hover-glow card-hover-effect group relative overflow-hidden rounded-3xl border border-[#e4dec8] bg-white shadow-sm"
+                className="group relative overflow-hidden rounded-3xl border border-[#e4dec8] bg-white shadow-sm transition-all duration-400 hover:-translate-y-2 hover:border-[#c5a059] hover:shadow-[0_24px_48px_-20px_rgba(197,160,89,0.5)]"
               >
-                <div className="relative aspect-16/10 overflow-hidden">
+                <div className="relative aspect-4/3 overflow-hidden bg-[#0a0e14]">
                   <Image
                     src={project.image}
                     alt={project.title}
                     fill
-                    quality={75}
-                    className="relative z-0 object-cover transition-transform duration-700 ease-out group-hover:scale-110 group-hover:brightness-105 group-hover:saturate-110"
-                    sizes="(max-width: 768px) 100vw, 50vw"
+                    quality={85}
+                    className="relative z-0 object-cover transition-transform duration-700 ease-out group-hover:scale-108 group-hover:brightness-105"
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                   />
-                  {/* Gradient Vignette Overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#0e1319]/90 via-[#0e1319]/30 to-transparent transition-opacity duration-300 group-hover:opacity-85" />
+                  {/* Cinematic Vignette */}
+                  <div className="absolute inset-0 bg-linear-to-t from-[#0a0e14]/90 via-[#0a0e14]/30 to-transparent transition-opacity duration-300 group-hover:opacity-80" />
                   
-                  {/* Category Badge Top Left */}
-                  <div className="absolute top-5 left-5">
-                    <span className="rounded-full bg-white/90 px-3.5 py-1 text-[10px] font-extrabold uppercase tracking-widest text-[#0e1319] backdrop-blur shadow-sm">
+                  {/* Category Pill Top Left */}
+                  <div className="absolute top-4 left-4 z-10">
+                    <span className="rounded-full border border-white/30 bg-[#0a0e14]/60 px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-wider text-white backdrop-blur-md">
                       {project.category}
                     </span>
                   </div>
 
-                  {/* Bottom Overlay Content */}
-                  <div className="absolute bottom-6 left-6 right-6 text-white">
-                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#c5a059]">
+                  {/* Index Tag Top Right */}
+                  <div className="absolute top-4 right-4 z-10">
+                    <span className="rounded-full bg-white/90 px-2.5 py-1 font-mono text-[10px] font-black text-[#0a0e14] shadow-xs">
+                      0{index + 1}
+                    </span>
+                  </div>
+
+                  {/* Bottom Content Overlay */}
+                  <div className="absolute bottom-5 left-5 right-5 z-10 text-white">
+                    <p className="font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-[#e5c97d]">
                       {project.location}
                     </p>
-                    <h3 className="mt-1 text-2xl font-bold tracking-tight text-white group-hover:text-[#e5c97d] transition-colors">
+                    <h3 className="mt-1 text-xl font-bold tracking-tight text-white transition-colors duration-300 group-hover:text-[#e5c97d]">
                       {project.title}
                     </h3>
-                    <div className="mt-4 flex items-center justify-between border-t border-white/20 pt-4">
-                      <span className="text-xs font-medium text-white/80">Completed Project</span>
+                    <div className="mt-3 flex items-center justify-between border-t border-white/20 pt-3">
+                      <span className="text-xs text-white/75">Execution Complete</span>
                       <Link
                         href={`/projects/${slug}`}
-                        className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.14em] text-white hover:text-[#c5a059]"
+                        className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.14em] text-white transition-colors hover:text-[#e5c97d]"
                       >
-                        <span>View Details</span>
-                        <svg className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                        </svg>
+                        <span>Details</span>
+                        <span className="text-sm">↗</span>
                       </Link>
                     </div>
                   </div>

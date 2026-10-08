@@ -55,22 +55,61 @@ export function getClientDb(): Firestore | undefined {
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: "select_account" });
 
+export type GoogleSignInOptions = {
+  name?: string;
+  email?: string;
+};
+
 /**
  * Sign in with Google on the client and establish a server session.
  */
-export async function signInWithGoogle(): Promise<{ success: boolean; error?: string; user?: unknown }> {
+export async function signInWithGoogle(options?: GoogleSignInOptions): Promise<{ success: boolean; error?: string; user?: unknown }> {
   const clientAuth = getClientAuth();
   if (!clientAuth) {
     if (process.env.NODE_ENV !== "production") {
       try {
-        // Development fallback: establish session with a dev account
+        let userEmail = options?.email?.trim();
+        let userName = options?.name?.trim();
+
+        if (typeof window !== "undefined") {
+          const cachedEmail = localStorage.getItem("buildora_last_registered_email") || localStorage.getItem("buildora_dev_google_email") || "";
+          const cachedName = localStorage.getItem("buildora_last_registered_name") || localStorage.getItem("buildora_dev_google_name") || "";
+
+          if (!userEmail) {
+            userEmail = cachedEmail;
+          }
+          if (!userName) {
+            userName = cachedName;
+          }
+
+          if (!userEmail) {
+            const entered = window.prompt(
+              "Sign in with Google (Dev Mode):\nPlease enter your Google account email address:",
+              "sandeepkami2005@gmail.com"
+            );
+            if (!entered) {
+              return { success: false, error: "Google sign-in was cancelled." };
+            }
+            userEmail = entered.trim();
+          }
+
+          if (!userName) {
+            const defaultName = userEmail.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+            const entered = window.prompt("Enter your Google display name:", defaultName);
+            userName = entered?.trim() || defaultName;
+          }
+
+          localStorage.setItem("buildora_dev_google_email", userEmail);
+          if (userName) localStorage.setItem("buildora_dev_google_name", userName);
+        }
+
         const res = await fetch("/api/auth/session", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             idToken: "dev-mock-google-token",
-            name: "Demo Customer",
-            email: "client@buildora.in",
+            name: userName || "Client User",
+            email: userEmail || "customer@example.com",
           }),
         });
 
@@ -99,8 +138,8 @@ export async function signInWithGoogle(): Promise<{ success: boolean; error?: st
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         idToken,
-        name: cred.user.displayName || "",
-        email: cred.user.email || "",
+        name: cred.user.displayName || options?.name || "",
+        email: cred.user.email || options?.email || "",
       }),
     });
 

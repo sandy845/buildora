@@ -144,7 +144,12 @@ export async function archiveUser(where: any): Promise<User> {
 // ==========================================
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function createLead(data: any): Promise<Lead> {
-  return firestoreCreate<Lead>("leads", data);
+  const { service, ...leadData } = data;
+  const serviceId = service?.connect?.id;
+  return firestoreCreate<Lead>(
+    "leads",
+    serviceId ? { ...leadData, serviceId } : leadData
+  );
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

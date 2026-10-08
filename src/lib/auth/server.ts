@@ -22,6 +22,7 @@ type SessionPayload = {
   userId: string;
   role: AuthRole;
   email?: string;
+  name?: string;
   expiresAt: number;
 };
 
@@ -75,11 +76,12 @@ function readSessionToken(token: string): SessionPayload | null {
   }
 }
 
-export async function setSession(userId: string, role: AuthRole, email?: string) {
+export async function setSession(userId: string, role: AuthRole, email?: string, name?: string) {
   const token = createSessionToken({
     userId,
     role,
     email,
+    name,
     expiresAt: Date.now() + sessionLifetimeSeconds * 1000,
   });
   const cookieStore = await cookies();
@@ -103,11 +105,11 @@ export async function getCurrentUser() {
   try {
     const user = await getUser({ id: session.userId });
     if (!user || user.accountStatus !== "active" || user.deletedAt) {
-      // In case session exists from Google login before DB write, fallback to session info
+      // Fallback to session info when DB lookup fails (e.g. dev mode in-memory reset)
       if (session.email) {
         return {
           id: session.userId,
-          name: session.email.split("@")[0] || "User",
+          name: session.name || session.email.split("@")[0] || "User",
           email: session.email,
           role: session.role,
         };
@@ -123,6 +125,15 @@ export async function getCurrentUser() {
     };
   } catch (error) {
     console.error("Buildora session lookup error:", error);
+    // Even on error, try to return session data so the user isn't kicked out
+    if (session.email) {
+      return {
+        id: session.userId,
+        name: session.name || session.email.split("@")[0] || "User",
+        email: session.email,
+        role: session.role,
+      };
+    }
     return null;
   }
 }
@@ -190,9 +201,16 @@ export async function createFirebaseSession(
         console.warn("[firebase-auth] Could not set custom claim:", claimErr);
       }
     }
+  } else if (name && (!existing.name || existing.name === "Buildora Client" || existing.name === "Demo Customer" || existing.name === "Buildora Member")) {
+    try {
+      await updateUser({ id: existing.id }, { name });
+      existing.name = name;
+    } catch {
+      // Ignore if update fails
+    }
   }
 
-  await setSession(existing.id, existing.role, existing.email);
+  await setSession(existing.id, existing.role, existing.email, existing.name);
   return {
     success: true,
     role: existing.role,
@@ -402,7 +420,7 @@ export async function loginUser(values: Record<string, unknown>): Promise<AuthAc
 
   try {
     await updateUser({ id: user.id }, { lastLoginAt: new Date().toISOString() });
-    await setSession(user.id, user.role, user.email);
+    await setSession(user.id, user.role, user.email, user.name);
   } catch (error) {
     console.error("[auth/login] Failed to update login state or create a session:", error);
     return { error: "Sign-in is temporarily unavailable. Please check the deployment configuration and try again." };

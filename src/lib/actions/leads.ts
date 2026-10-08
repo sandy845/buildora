@@ -5,6 +5,8 @@ import { createLeadService } from "../services/core.ts";
 import { sendLeadConfirmationEmail, sendNewLeadAlertEmail } from "../email.ts";
 import { leadFormLimiter, getClientIp } from "../rate-limit.ts";
 import { headers } from "next/headers.js";
+import { getCurrentUser } from "../auth/server";
+import { createProject } from "../db/data-access";
 
 export type SubmitLeadState = {
   success?: boolean;
@@ -89,10 +91,37 @@ export async function submitContactLeadAction(
       phone,
       location,
       projectBrief: serviceName ? `[Service: ${serviceName}]\n${message}` : message,
-      budgetRange: budget || undefined,
+      ...(budget ? { budgetRange: budget } : {}),
       source: "website_contact",
-      service: serviceConnect,
+      ...(serviceConnect ? { service: serviceConnect } : {}),
     });
+
+    // If a logged-in customer submitted this form, also create a Project record
+    // linked to their account so it shows on their dashboard immediately.
+    try {
+      const currentUser = await getCurrentUser();
+      if (currentUser && currentUser.role === "customer") {
+        const projectName = serviceName || "New Project";
+        const slug = `${projectName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Date.now()}`;
+        await createProject({
+          customerId: currentUser.id,
+          name: projectName,
+          slug,
+          location,
+          status: "planning",
+          progress: 0,
+          leadId: lead.id,
+          description: message,
+          ...(budget ? { budgetRange: budget } : {}),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          deletedAt: null,
+        });
+      }
+    } catch (projectErr) {
+      // Non-fatal — the lead was already saved. Log and continue.
+      console.warn("[leads] Could not create project record for logged-in user:", projectErr);
+    }
 
     // Dispatch customer confirmation and admin notification emails asynchronously
     try {

@@ -17,25 +17,25 @@ export function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 glass-nav border-b border-[#e4dec8]/80 transition-all duration-300">
+    <header className="sticky top-0 z-50 border-b border-[#e4dec8]/90 bg-[#f8f6f0]/90 backdrop-blur-xl transition-all duration-300">
       <Container className="flex items-center justify-between gap-4 py-3 sm:gap-6 sm:py-3.5">
         {/* Brand Logo */}
-        <Link href="/" className="group flex items-center gap-3 text-base font-semibold tracking-[0.22em] text-[#0e1319] uppercase transition-transform active:scale-95">
-          <span className="gold-gradient-bg flex h-8 w-8 items-center justify-center rounded-lg text-xs font-black text-[#0e1319] shadow-md shadow-[#c5a059]/20 transition-transform duration-300 group-hover:scale-110">
+        <Link href="/" className="group flex items-center gap-2.5 text-base font-semibold tracking-[0.22em] text-[#0a0e14] uppercase transition-transform active:scale-95">
+          <span className="gold-gradient-bg flex h-8 w-8 items-center justify-center rounded-lg text-xs font-black text-[#0a0e14] shadow-md shadow-[#c5a059]/25 transition-transform duration-300 group-hover:scale-105">
             B
           </span>
-          <span className="font-bold tracking-[0.25em] text-[#0e1319] transition-colors group-hover:text-[#c5a059]">
+          <span className="font-extrabold tracking-[0.24em] text-[#0a0e14] transition-colors group-hover:text-[#c5a059]">
             BUILDORA
           </span>
         </Link>
 
         {/* Desktop Navigation Links */}
-        <nav aria-label="Main navigation" className="hidden items-center gap-8 lg:flex">
+        <nav aria-label="Main navigation" className="hidden items-center gap-7 lg:flex">
           {navItems.map((item) => (
             <Link
               key={item.label}
               href={item.href}
-              className="relative text-sm font-semibold text-[#625d57] transition-colors duration-200 hover:text-[#0e1319] group py-1"
+              className="group relative py-1 text-sm font-semibold tracking-wide text-[#625d57] transition-colors duration-200 hover:text-[#0a0e14]"
             >
               {item.label}
               <span className="absolute bottom-0 left-0 h-0.5 w-0 gold-gradient-bg transition-all duration-300 group-hover:w-full" />
@@ -44,29 +44,22 @@ export function Navbar() {
         </nav>
 
         {/* CTA Buttons */}
-        <div className="hidden items-center gap-4 lg:flex">
+        <div className="hidden items-center gap-3.5 lg:flex">
           <Link
             href="/auth/login"
-            className="group/login inline-flex items-center gap-2 rounded-full border border-[#c5a059]/35 bg-white/50 px-4 py-2 text-xs font-bold uppercase tracking-[0.14em] text-[#625d57] shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-[#c5a059] hover:bg-[#c5a059]/10 hover:text-[#0e1319] hover:shadow-[#c5a059]/20"
+            className="group/login inline-flex items-center gap-2 rounded-full border border-[#c5a059]/40 bg-white/60 px-4 py-2 text-xs font-bold uppercase tracking-[0.14em] text-[#625d57] shadow-2xs backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:border-[#c5a059] hover:bg-[#fffdf8] hover:text-[#0a0e14] hover:shadow-[0_4px_12px_rgba(197,160,89,0.2)] active:scale-95"
           >
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#0e1319] text-[9px] font-black text-white transition-colors group-hover/login:bg-[#c5a059] group-hover/login:text-[#0e1319]">
+            <span className="flex h-4.5 w-4.5 items-center justify-center rounded-full bg-[#0a0e14] text-[9px] font-black text-white transition-colors group-hover/login:bg-[#c5a059] group-hover/login:text-[#0a0e14]">
               ↗
             </span>
             Client Login
           </Link>
           <Link
             href="/request-project"
-            className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-[#0e1319] px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.14em] text-white shadow-lg transition-all duration-300 hover:bg-[#c5a059] hover:text-[#0e1319] hover:shadow-[#c5a059]/30 hover:scale-[1.03]"
+            className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-[#0a0e14] px-5 py-2.5 text-xs font-bold uppercase tracking-[0.14em] text-white shadow-lg shadow-black/10 transition-all duration-300 hover:bg-[#c5a059] hover:text-[#0a0e14] hover:shadow-[#c5a059]/30 hover:scale-[1.02] active:scale-95"
           >
             <span>Request Project</span>
-            <svg
-              className="h-3.5 w-3.5 transition-transform duration-300 group-hover:translate-x-1"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-            </svg>
+            <span className="text-xs transition-transform duration-300 group-hover:translate-x-1">→</span>
           </Link>
         </div>
 

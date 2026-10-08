@@ -102,9 +102,14 @@ async function getClientDashboardServerSnapshot() {
   if (!user) {
     return {
       navItems: [...clientNavFallback],
-      stats: [...clientStatsFallback] as { label: string; value: string; detail: string; tone: string }[],
-      projects: [...clientProjectsFallback],
-      activity: [...clientActivityFallback],
+      stats: [
+        { label: "Active projects", value: "0", detail: "No active jobs yet", tone: "neutral" },
+        { label: "Overall progress", value: "0%", detail: "No project in progress", tone: "positive" },
+        { label: "Pending approvals", value: "0", detail: "No pending reviews", tone: "attention" },
+        { label: "Outstanding payment", value: "₹0", detail: "All caught up", tone: "attention" },
+      ],
+      projects: [],
+      activity: [],
       quotations: [],
       documents: [],
       messages: [],
@@ -120,6 +125,7 @@ async function getClientDashboardServerSnapshot() {
         orderBy: { field: "updatedAt", direction: "desc" },
       }),
       firestoreFind("activityEvents", {
+        where: [{ field: "customerId", operator: "==", value: user.id }],
         orderBy: { field: "createdAt", direction: "desc" },
         limit: 4,
       }),
@@ -128,14 +134,17 @@ async function getClientDashboardServerSnapshot() {
       }),
       firestoreFind("payments"),
       firestoreFind("quotations", {
+        where: [{ field: "customerId", operator: "==", value: user.id }],
         orderBy: { field: "updatedAt", direction: "desc" },
         limit: 3,
       }),
       firestoreFind("documents", {
+        where: [{ field: "customerId", operator: "==", value: user.id }],
         orderBy: { field: "updatedAt", direction: "desc" },
         limit: 3,
       }),
       firestoreFind("messages", {
+        where: [{ field: "customerId", operator: "==", value: user.id }],
         orderBy: { field: "sentAt", direction: "desc" },
         limit: 3,
       }),
@@ -146,13 +155,16 @@ async function getClientDashboardServerSnapshot() {
       }),
     ]);
 
-    const userProjects = projects.length > 0 ? projects : (clientProjectsFallback as unknown as typeof projects);
-    const progressValues = userProjects.map((p) => Number(p.progress || 0));
-    const avgProgress = progressValues.length ? Math.round(progressValues.reduce((s, v) => s + v, 0) / progressValues.length) : 68;
+    const progressValues = projects.map((p) => Number(p.progress || 0));
+    const avgProgress = progressValues.length ? Math.round(progressValues.reduce((s, v) => s + v, 0) / progressValues.length) : 0;
 
-    const unpaidTotal = payments
+    const userProjectIds = new Set(projects.map((p) => p.id));
+    const userPayments = payments.filter((p) => (p.customerId === user.id) || (p.projectId && userProjectIds.has(p.projectId as string)));
+    const unpaidTotal = userPayments
       .filter((p) => p.status !== "paid")
-      .reduce((sum, p) => sum + Number(p.amount || 0), 0) || 84500;
+      .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+
+    const pendingApprovalCount = projects.length > 0 ? approvalCount : 0;
 
     return {
       navItems: clientNavFallback.map((item) => (
@@ -163,27 +175,47 @@ async function getClientDashboardServerSnapshot() {
             : item
       )),
       stats: [
-        { label: "Active projects", value: String(userProjects.length), detail: "Across your active jobs", tone: "neutral" },
-        { label: "Overall progress", value: `${avgProgress}%`, detail: "Across your portfolio", tone: "positive" },
-        { label: "Pending approvals", value: String(approvalCount || 3), detail: "Needs your review", tone: "attention" },
-        { label: "Outstanding payment", value: `₹${unpaidTotal.toLocaleString("en-IN")}`, detail: "Due for review", tone: "attention" },
+        {
+          label: "Active projects",
+          value: String(projects.length),
+          detail: projects.length === 0 ? "No active jobs yet" : `${projects.length} active job${projects.length > 1 ? "s" : ""}`,
+          tone: "neutral",
+        },
+        {
+          label: "Overall progress",
+          value: `${avgProgress}%`,
+          detail: projects.length === 0 ? "No project in progress" : "Across your portfolio",
+          tone: "positive",
+        },
+        {
+          label: "Pending approvals",
+          value: String(pendingApprovalCount),
+          detail: pendingApprovalCount === 0 ? "No pending reviews" : "Needs your review",
+          tone: "attention",
+        },
+        {
+          label: "Outstanding payment",
+          value: `₹${unpaidTotal.toLocaleString("en-IN")}`,
+          detail: unpaidTotal === 0 ? "All caught up" : "Due for review",
+          tone: "attention",
+        },
       ],
-      projects: userProjects.map((p) => ({
+      projects: projects.map((p) => ({
         id: p.id,
-        name: (p.name as string) || "Residence 01",
+        name: (p.name as string) || "Your Project",
         type: p.status === "planning" ? "Residential construction" : "Project update",
         location: (p.location as string) || "Your project location",
-        progress: Number(p.progress || 60),
-        milestone: "Review & foundation",
-        due: "Pending",
+        progress: Number(p.progress || 0),
+        milestone: (p.currentMilestone as string) || "Project planning",
+        due: (p.targetDate as string) || "Pending schedule",
         color: p.status === "completed" ? "bg-emerald-600" : "bg-amber-500",
       })),
-      activity: activity.length > 0 ? activity.map((e) => ({
+      activity: activity.map((e) => ({
         title: (e.description as string) || (e.type as string),
         detail: e.createdAt ? new Date(e.createdAt as string).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }) : "Recently",
         icon: "building",
         tone: "dark",
-      })) : [...clientActivityFallback],
+      })),
       quotations: quotations.map((q) => ({
         id: q.id,
         title: `Quotation #${q.quotationNumber || q.id}`,
@@ -208,12 +240,17 @@ async function getClientDashboardServerSnapshot() {
       account: { name: user.name, email: user.email },
     };
   } catch (error) {
-    console.warn("[data-access] Using client dashboard fallback:", error);
+    console.warn("[data-access] Using client dashboard empty state due to error:", error);
     return {
       navItems: [...clientNavFallback],
-      stats: [...clientStatsFallback] as { label: string; value: string; detail: string; tone: string }[],
-      projects: [...clientProjectsFallback],
-      activity: [...clientActivityFallback],
+      stats: [
+        { label: "Active projects", value: "0", detail: "No active jobs yet", tone: "neutral" },
+        { label: "Overall progress", value: "0%", detail: "No project in progress", tone: "positive" },
+        { label: "Pending approvals", value: "0", detail: "No pending reviews", tone: "attention" },
+        { label: "Outstanding payment", value: "₹0", detail: "All caught up", tone: "attention" },
+      ],
+      projects: [],
+      activity: [],
       quotations: [],
       documents: [],
       messages: [],

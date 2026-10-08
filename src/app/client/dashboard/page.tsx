@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { DashboardIcon } from "@/components/client/dashboard-icons";
+import { logoutClient } from "@/app/client/actions";
 import { getClientDashboardDataServer } from "@/lib/data-access";
 import { ClientDashboardClient } from "./page.client";
 import type { Metadata } from "next";
@@ -13,6 +14,9 @@ export const metadata: Metadata = {
 
 export default async function ClientDashboardPage() {
   const data = await getClientDashboardDataServer();
+  const accountName = data.account?.name || "Client";
+  const accountEmail = data.account?.email || "";
+  const accountInitials = accountName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
 
   return (
     <div className="min-h-screen bg-[#f0ede7] text-primary">
@@ -21,29 +25,30 @@ export default async function ClientDashboardPage() {
         <DashboardNavigation navItems={data.navItems} />
         <details className="group relative mt-auto border-t border-border bg-[#faf8f3] p-4">
           <summary className="flex cursor-pointer list-none items-center gap-3 rounded-2xl p-2 transition-colors hover:bg-[#f3efe5] [&::-webkit-details-marker]:hidden">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#e5c875] text-xs font-black text-primary shadow-sm transition-transform duration-300 group-hover:scale-105">
-              CP
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#e5c875] text-xs font-black text-primary shadow-sm transition-transform duration-300 group-hover:scale-105">
+              {accountInitials || "C"}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-primary">Client account</p>
-              <p className="truncate text-xs text-muted">Buildora workspace</p>
+              <p className="truncate text-sm font-semibold text-primary">{accountName}</p>
+              <p className="truncate text-xs text-muted">{accountEmail}</p>
             </div>
             <span className="text-muted transition-transform duration-300 group-open:rotate-180" aria-hidden="true">⌄</span>
           </summary>
           <div className="absolute bottom-[calc(100%-0.25rem)] left-4 right-4 z-50 rounded-2xl border border-[#d9cba8] bg-[#fffdf8] p-2 shadow-xl shadow-primary/10">
             <div className="border-b border-border px-3 py-2">
               <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#a98032]">Account menu</p>
-              <p className="mt-1 text-xs text-muted">Manage your client access</p>
+              <p className="mt-1 truncate text-xs text-muted">{accountEmail}</p>
             </div>
-            <Link href="/client/dashboard#profile" className="mt-1 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-primary transition-colors hover:bg-[#f3efe5]">
-              <span className="text-[#a98032]">○</span> View profile
+            <Link href="/client/profile" className="mt-1 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-primary transition-colors hover:bg-[#f3efe5]">
+              <DashboardIcon name="user" className="h-4 w-4 text-[#a98032]" />
+              Profile &amp; settings
             </Link>
-            <a href="#settings" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-primary transition-colors hover:bg-[#f3efe5]">
-              <span className="text-[#a98032]">⚙</span> Edit profile
-            </a>
-            <Link href="/auth/login" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-red-50 hover:text-red-700">
-              <span>↗</span> Sign out
-            </Link>
+            <form action={logoutClient}>
+              <button type="submit" className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-muted transition-colors hover:bg-red-50 hover:text-red-700">
+                <span aria-hidden="true">↗</span>
+                Sign out
+              </button>
+            </form>
           </div>
         </details>
       </aside>
@@ -68,8 +73,8 @@ export default async function ClientDashboardPage() {
 function DashboardBrand({ compact = false }: { compact?: boolean }) {
   return (
     <Link
-      href="/client/dashboard"
-      className={`flex items-center gap-2.5 ${compact ? "text-sm" : "px-5 py-7 text-base"} font-semibold uppercase tracking-[0.18em] text-primary`}
+      href="/"
+      className={`flex items-center gap-2.5 ${compact ? "text-sm" : "px-5 py-7 text-base"} font-semibold uppercase tracking-[0.18em] text-primary transition-opacity hover:opacity-75`}
     >
       <span className="gold-gradient-bg flex h-8 w-8 items-center justify-center rounded-lg text-xs font-black text-primary shadow-md shadow-[#c5a059]/20">B</span>
       Buildora

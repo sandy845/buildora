@@ -1,21 +1,31 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
 import { validateLogin } from "@/lib/auth";
 import { loginUser } from "@/lib/auth/server";
 import { signInWithGoogle } from "@/lib/firebase/client";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
-  const [form, setForm] = useState({ email: "", password: "" });
+  const searchParams = useSearchParams();
+  const isRegistered = searchParams.get("registered") === "true";
+  const emailParam = searchParams.get("email") || "";
+
+  const [form, setForm] = useState({ email: emailParam, password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<"email" | "password", string>>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
   const [submitState, setSubmitState] = useState<"idle" | "success" | "error">("idle");
   const [serverError, setServerError] = useState("");
+
+  useEffect(() => {
+    if (emailParam && !form.email) {
+      setForm((prev) => ({ ...prev, email: emailParam }));
+    }
+  }, [emailParam]);
 
   function updateField(field: keyof typeof form, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -30,7 +40,9 @@ export default function LoginPage() {
     setSubmitState("idle");
 
     try {
-      const result = await signInWithGoogle();
+      const result = await signInWithGoogle({
+        email: form.email.trim() || undefined,
+      });
       if (!result.success) {
         setServerError(result.error || "Failed to sign in with Google.");
         setSubmitState("error");
@@ -87,18 +99,41 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-[calc(100vh-9rem)] items-center justify-center px-4 py-16">
-      <div className="w-full max-w-md rounded-4xl border border-border bg-white p-6 shadow-sm sm:p-8">
-        <p className="text-sm font-medium uppercase tracking-[0.18em] text-muted">Welcome back</p>
-        <h1 className="mt-4 text-3xl font-semibold tracking-tighter text-primary">Log in</h1>
+    <main className="relative isolate flex min-h-[calc(100vh-9rem)] items-center justify-center overflow-hidden bg-[#f8f6f0] px-4 py-16">
+      {/* Blueprint Grid & Ambient Illumination */}
+      <div className="tech-blueprint-grid pointer-events-none absolute inset-0 opacity-40" aria-hidden="true" />
+      <div className="pointer-events-none absolute -left-20 top-1/4 h-80 w-80 rounded-full bg-[#c5a059]/15 blur-3xl" aria-hidden="true" />
+      <div className="pointer-events-none absolute -right-20 bottom-1/4 h-80 w-80 rounded-full bg-[#e5c97d]/15 blur-3xl" aria-hidden="true" />
+
+      <div className="relative z-10 w-full max-w-md rounded-3xl border border-[#d9cba8] bg-[#fffdf8] p-7 shadow-2xl shadow-[#c5a059]/10 sm:p-9">
+        <div className="inline-flex items-center gap-2 rounded-full border border-[#c5a059]/35 bg-white px-3 py-1 text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-[#a98032] shadow-xs">
+          <span className="h-1.5 w-1.5 rounded-full bg-[#c5a059]" />
+          Portal Access // Client &amp; Admin
+        </div>
+        <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-[#0a0e14]">Log in to Buildora</h1>
+        <p className="mt-2 text-sm text-[#625d57]">Enter your credentials to access your live project dashboard.</p>
+
+        {isRegistered && (
+          <div className="mt-5 rounded-2xl border border-emerald-500/25 bg-emerald-50/80 p-4 text-xs shadow-xs">
+            <div className="flex items-center gap-2 font-bold text-emerald-800">
+              <svg className="h-4 w-4 shrink-0 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+              </svg>
+              <span>Account created successfully!</span>
+            </div>
+            <p className="mt-1 pl-6 text-[#625d57]">
+              Please log in below with your credentials to access your dashboard.
+            </p>
+          </div>
+        )}
 
         {/* Google Sign-in Button */}
-        <div className="mt-6">
+        <div className="mt-7">
           <button
             type="button"
             onClick={handleGoogleSignIn}
             disabled={isGoogleSubmitting || isSubmitting}
-            className="flex w-full items-center justify-center gap-3 rounded-full border border-border bg-white px-4 py-3 text-sm font-medium text-primary shadow-xs transition hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-70"
+            className="flex w-full items-center justify-center gap-3 rounded-full border border-[#e4dec8] bg-white px-5 py-3.5 text-xs font-bold uppercase tracking-[0.14em] text-[#0a0e14] shadow-xs transition-all duration-300 hover:border-[#c5a059] hover:bg-[#faf7ee] hover:shadow-sm active:scale-95 disabled:cursor-not-allowed disabled:opacity-70"
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24">
               <path
@@ -121,39 +156,39 @@ export default function LoginPage() {
             <span>{isGoogleSubmitting ? "Connecting to Google..." : "Continue with Google"}</span>
           </button>
 
-          <div className="relative my-6 text-center text-xs uppercase tracking-wider text-muted">
-            <span className="relative z-10 bg-white px-3">Or continue with email</span>
-            <div className="absolute inset-y-1/2 left-0 right-0 h-px bg-border" />
+          <div className="relative my-6 text-center text-xs uppercase tracking-wider text-[#625d57]">
+            <span className="relative z-10 bg-[#fffdf8] px-3 font-mono text-[10px] text-[#625d57]/70">Or continue with email</span>
+            <div className="absolute inset-y-1/2 left-0 right-0 h-px bg-[#e4dec8]" />
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} noValidate className="space-y-5">
-          <label className="block text-sm text-primary">
-            <span className="mb-2 block font-medium">Email</span>
+        <form onSubmit={handleSubmit} noValidate className="space-y-4">
+          <label className="block text-sm text-[#0a0e14]">
+            <span className="mb-1.5 block font-medium">Email address</span>
             <input
               type="email"
               value={form.email}
               onChange={(event) => updateField("email", event.target.value)}
-              className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-primary outline-none transition focus:border-primary"
+              className="w-full rounded-xl border border-[#e4dec8] bg-white px-3.5 py-2.5 text-sm text-[#0a0e14] outline-none transition focus:border-[#c5a059] focus:ring-2 focus:ring-[#c5a059]/15"
               placeholder="name@example.com"
             />
-            {errors.email && <span className="mt-2 block text-xs text-red-600">{errors.email}</span>}
+            {errors.email && <span className="mt-1.5 block text-xs text-red-600">{errors.email}</span>}
           </label>
 
-          <label className="block text-sm text-primary">
-            <span className="mb-2 block font-medium">Password</span>
+          <label className="block text-sm text-[#0a0e14]">
+            <span className="mb-1.5 block font-medium">Password</span>
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
                 value={form.password}
                 onChange={(event) => updateField("password", event.target.value)}
-                className="w-full rounded-xl border border-border bg-background px-3 py-2.5 pr-12 text-sm text-primary outline-none transition focus:border-primary"
+                className="w-full rounded-xl border border-[#e4dec8] bg-white px-3.5 py-2.5 pr-12 text-sm text-[#0a0e14] outline-none transition focus:border-[#c5a059] focus:ring-2 focus:ring-[#c5a059]/15"
                 placeholder="••••••••"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword((visible) => !visible)}
-                className="absolute inset-y-0 right-3 inline-flex items-center text-muted hover:text-primary"
+                className="absolute inset-y-0 right-3 inline-flex items-center text-[#625d57] hover:text-[#0a0e14]"
                 aria-label={showPassword ? "Hide password" : "Show password"}
               >
                 <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
@@ -165,17 +200,17 @@ export default function LoginPage() {
                 </svg>
               </button>
             </div>
-            {errors.password && <span className="mt-2 block text-xs text-red-600">{errors.password}</span>}
+            {errors.password && <span className="mt-1.5 block text-xs text-red-600">{errors.password}</span>}
           </label>
 
           <div className="flex items-center justify-end">
-            <Link href="/auth/forgot-password" className="text-sm text-primary hover:text-muted">
+            <Link href="/auth/forgot-password" className="text-xs font-semibold text-[#a98032] hover:underline">
               Forgot password?
             </Link>
           </div>
 
           {submitState === "error" && (
-            <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            <p className="rounded-xl border border-red-200 bg-red-50 px-3.5 py-2 text-xs font-medium text-red-700">
               {serverError || "Please fix the highlighted fields and try again."}
             </p>
           )}
@@ -183,19 +218,33 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isSubmitting || isGoogleSubmitting}
-            className="inline-flex w-full items-center justify-center rounded-full bg-primary px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-[#2a2a2a] disabled:cursor-not-allowed disabled:opacity-70"
+            className="inline-flex w-full items-center justify-center rounded-full bg-[#0a0e14] px-6 py-3.5 text-xs font-bold uppercase tracking-[0.16em] text-white shadow-lg transition-all duration-300 hover:bg-[#c5a059] hover:text-[#0a0e14] hover:shadow-[#c5a059]/30 active:scale-95 disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {isSubmitting ? "Signing in..." : "Log in"}
+            {isSubmitting ? "Signing in..." : "Log in to Dashboard →"}
           </button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-muted">
-          Need an account?{" "}
-          <Link href="/auth/register" className="font-medium text-primary hover:text-muted">
-            Create one
+        <p className="mt-6 text-center text-xs text-[#625d57]">
+          Need a client account?{" "}
+          <Link href="/auth/register" className="font-bold text-[#0a0e14] hover:text-[#a98032]">
+            Create one here
           </Link>
         </p>
       </div>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-[calc(100vh-9rem)] items-center justify-center bg-[#f8f6f0]">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#c5a059] border-t-transparent" />
+        </main>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }
