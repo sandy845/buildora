@@ -154,6 +154,13 @@ export async function signInWithGoogle(options?: GoogleSignInOptions): Promise<{
     if (message.includes("popup-closed-by-user")) {
       return { success: false, error: "Sign in was cancelled." };
     }
+    if (message.includes("auth/unauthorized-domain")) {
+      const currentHost = typeof window !== "undefined" ? window.location.hostname : "your current domain";
+      return {
+        success: false,
+        error: `Domain unauthorized: "${currentHost}" is not added in Firebase Console. Add "${currentHost}" under Firebase Console -> Authentication -> Settings -> Authorized Domains.`,
+      };
+    }
     return { success: false, error: message };
   }
 }
@@ -196,6 +203,13 @@ export async function signInWithFirebaseEmail(
     }
     if (message.includes("auth/too-many-requests")) {
       return { success: false, error: "Too many failed attempts. Please try again later." };
+    }
+    if (message.includes("auth/unauthorized-domain")) {
+      const currentHost = typeof window !== "undefined" ? window.location.hostname : "your current domain";
+      return {
+        success: false,
+        error: `Domain unauthorized: "${currentHost}" is not added in Firebase Console. Add "${currentHost}" under Firebase Console -> Authentication -> Settings -> Authorized Domains.`,
+      };
     }
     return { success: false, error: message };
   }
