@@ -29,10 +29,11 @@ test("submitContactLeadAction rejects invalid email address", async () => {
 test("submitContactLeadAction persists a valid enquiry in PostgreSQL", {
   skip: process.env.RUN_DATABASE_TESTS !== "1",
 }, async () => {
-  const slug = `test-service-${Date.now()}`;
+  const serviceName = `Interior design ${Date.now()}`;
+  const slug = serviceName.toLowerCase().replace(/[^a-z0-9]+/g, "-");
   const email = `lead-${Date.now()}@example.com`;
   const service = await prisma.service.create({
-    data: { name: "Interior design", slug, description: "Test fixture" },
+    data: { name: serviceName, slug, description: "Test fixture" },
   });
   try {
     const result = await submitContactLeadAction({
@@ -40,13 +41,13 @@ test("submitContactLeadAction persists a valid enquiry in PostgreSQL", {
       email,
       phone: "+91 98765 43210",
       location: "Mumbai",
-      service: "Interior design",
+      service: serviceName,
       message: "Please help plan an interior design project.",
     });
     assert.equal(result.success, true);
     assert.ok(result.leadId);
     const lead = await prisma.lead.findUnique({ where: { id: result.leadId } });
-    assert.equal(lead?.projectBrief, "[Service: Interior design]\nPlease help plan an interior design project.");
+    assert.equal(lead?.projectBrief, `[Service: ${serviceName}]\nPlease help plan an interior design project.`);
     assert.equal(lead?.budgetRange, null);
     assert.equal(lead?.serviceId, service.id);
   } finally {
