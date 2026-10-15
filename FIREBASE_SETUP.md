@@ -73,14 +73,12 @@ In Vercel, open the Buildora project, then go to **Settings -> Environment Varia
 
 ```text
 AUTH_SECRET=<a unique random value of at least 32 characters>
-RESEND_API_KEY=<your Resend API key>
-EMAIL_FROM=<a sender address verified with your email provider>
 NEXT_PUBLIC_APP_URL=https://your-production-domain
 ```
 
-Use a verified Resend sender, or configure Postmark (`POSTMARK_SERVER_TOKEN`) or SMTP (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`) instead. Keep all Admin credentials, `AUTH_SECRET`, and email-provider tokens server-only; do not use the `NEXT_PUBLIC_` prefix for them or paste them into chat. Apply these variables to **Production** (and Preview if needed), save, and redeploy the latest commit so the deployment picks them up.
+Add a transactional email provider only if Buildora should send enquiry and project-notification emails: use Resend (`RESEND_API_KEY` and verified `EMAIL_FROM`), Postmark (`POSTMARK_SERVER_TOKEN`), or SMTP (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`). Firebase Authentication sends email/password verification and password-reset links itself. Keep Admin credentials, `AUTH_SECRET`, and email-provider tokens server-only; do not use the `NEXT_PUBLIC_` prefix for them or paste them into chat. Apply these variables to **Production** (and Preview if needed), save, and redeploy the latest commit so the deployment picks them up.
 
-Before trying registration, open `https://your-production-domain/api/health`. The database should report `connected`; a missing or invalid Firestore configuration must be fixed in Vercel/Firebase before account registration can persist. Registration sends a verification code and users must complete `/auth/verify` before logging in.
+Add your deployed site hostname under **Firebase Console -> Authentication -> Settings -> Authorized domains**. Before trying registration, open `https://your-production-domain/api/health` and confirm the database reports `connected`. With Firebase configured, registration sends a Firebase verification link and users must verify their email before logging in. Without Firebase client/Admin credentials, registration falls back to the Buildora email-code flow, which requires a configured transactional email provider in production.
 
 ---
 

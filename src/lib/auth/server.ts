@@ -10,6 +10,7 @@ import { validateLogin, validateRegister } from "@/lib/auth";
 import { authLoginLimiter, authRegisterLimiter, authVerificationLimiter, getClientIp } from "@/lib/rate-limit";
 import { sendPasswordResetEmail, sendVerificationEmail } from "@/lib/email";
 import { getAdminAuth } from "@/lib/firebase/admin";
+import { isFirebaseClientConfigured } from "@/lib/firebase/config";
 import type { UserRole } from "@/lib/types/models";
 
 const scrypt = promisify(scryptCallback);
@@ -33,6 +34,7 @@ function generateVerificationOtp() {
 export type AuthActionState = {
   error?: string;
   success?: boolean;
+  verificationProvider?: "firebase" | "email";
 };
 
 function allowDevSessionFallback() {
@@ -166,6 +168,7 @@ export async function createFirebaseSession(
   let uid = "";
   let email = extraProfile?.email || "";
   let name = extraProfile?.name || "";
+  let verifiedEmail = false;
 
   if (adminAuth) {
     try {
@@ -176,6 +179,7 @@ export async function createFirebaseSession(
       uid = decoded.uid;
       email = decoded.email || email;
       name = decoded.name || name;
+      verifiedEmail = decoded.email_verified === true;
     } catch (err) {
       console.error("[firebase-auth] Failed to verify ID token:", err);
       return { success: false, error: "Invalid authentication token." };
@@ -185,6 +189,7 @@ export async function createFirebaseSession(
   } else {
     uid = `fb-${Date.now()}`;
     email = email || "user@example.com";
+    verifiedEmail = true;
   }
 
   const normalizedEmail = email.toLowerCase().trim();
@@ -224,6 +229,11 @@ export async function createFirebaseSession(
     } catch {
       // Ignore if update fails
     }
+  }
+
+  if (verifiedEmail && !existing.emailVerifiedAt) {
+    await updateUser({ id: existing.id }, { emailVerifiedAt: new Date() });
+    existing.emailVerifiedAt = new Date();
   }
 
   await setSession(existing.id, existing.role, existing.email, existing.name);
@@ -275,6 +285,7 @@ export async function registerUser(values: Record<string, unknown>): Promise<Aut
 
   let firebaseUid: string | undefined;
   const adminAuth = getAdminAuth();
+  const firebaseEmailAuthEnabled = Boolean(adminAuth && isFirebaseClientConfigured());
   if (adminAuth) {
     try {
       const fbUser = await adminAuth.createUser({
@@ -298,8 +309,7 @@ export async function registerUser(values: Record<string, unknown>): Promise<Aut
   const passwordHash = `scrypt:${salt}:${derivedKey.toString("hex")}`;
 
   let created: Awaited<ReturnType<typeof createUser>>;
-  let rawToken: string;
-  let emailResult: Awaited<ReturnType<typeof sendVerificationEmail>>;
+  let emailResult: Awaited<ReturnType<typeof sendVerificationEmail>> | undefined;
   try {
     created = await createUser({
       name,
@@ -314,20 +324,21 @@ export async function registerUser(values: Record<string, unknown>): Promise<Aut
       await adminAuth.setCustomUserClaims(firebaseUid, { role: "customer", userId: created.id });
     }
 
-    rawToken = generateVerificationOtp();
-    await prisma.emailVerificationToken.create({ data: {
-      userId: created.id,
-      tokenHash: createHash("sha256").update(rawToken).digest("hex"),
-      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
-      usedAt: null,
-    } });
-
-    emailResult = await sendVerificationEmail(email, name, rawToken);
+    if (!firebaseEmailAuthEnabled) {
+      const rawToken = generateVerificationOtp();
+      await prisma.emailVerificationToken.create({ data: {
+        userId: created.id,
+        tokenHash: createHash("sha256").update(rawToken).digest("hex"),
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+        usedAt: null,
+      } });
+      emailResult = await sendVerificationEmail(email, name, rawToken);
+    }
   } catch (error) {
     console.error("[auth/register] Failed to create the account or verification token:", error);
     return { error: "Registration could not be completed. Please check the deployment configuration and try again." };
   }
-  if (!emailResult.sent) {
+  if (!firebaseEmailAuthEnabled && emailResult && !emailResult.sent) {
     // If email is not configured in local dev, allow automatic activation so user can log in
     if (process.env.NODE_ENV !== "production") {
       await updateUser({ id: created.id }, { emailVerifiedAt: new Date() });
@@ -338,7 +349,7 @@ export async function registerUser(values: Record<string, unknown>): Promise<Aut
     };
   }
 
-  return { success: true };
+  return { success: true, verificationProvider: firebaseEmailAuthEnabled ? "firebase" : "email" };
 }
 
 export async function resendVerificationEmail(emailValue: string): Promise<AuthActionState> {

@@ -8,6 +8,7 @@ import {
   GoogleAuthProvider,
   signOut,
   sendPasswordResetEmail,
+  sendEmailVerification,
   type Auth,
   type UserCredential,
 } from "firebase/auth";
@@ -101,7 +102,7 @@ export async function signInWithGoogle(options?: GoogleSignInOptions): Promise<{
 export async function signInWithFirebaseEmail(
   email: string,
   pass: string
-): Promise<{ success: boolean; error?: string; role?: string }> {
+): Promise<{ success: boolean; error?: string; role?: string; fallbackToDatabase?: boolean }> {
   const clientAuth = getClientAuth();
   if (!clientAuth) {
     return {
@@ -112,7 +113,11 @@ export async function signInWithFirebaseEmail(
 
   try {
     const cred = await signInWithEmailAndPassword(clientAuth, email, pass);
-    const idToken = await cred.user.getIdToken();
+    await cred.user.reload();
+    if (!cred.user.emailVerified) {
+      return { success: false, error: "Please verify your email address using the link we sent before logging in." };
+    }
+    const idToken = await cred.user.getIdToken(true);
 
     const res = await fetch("/api/auth/session", {
       method: "POST",
@@ -128,7 +133,14 @@ export async function signInWithFirebaseEmail(
     return { success: true, role: data.user?.role };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    if (message.includes("auth/invalid-credential") || message.includes("auth/user-not-found") || message.includes("auth/wrong-password")) {
+    if (message.includes("auth/user-not-found")) {
+      return {
+        success: false,
+        error: "Invalid email or password.",
+        fallbackToDatabase: true,
+      };
+    }
+    if (message.includes("auth/invalid-credential") || message.includes("auth/wrong-password")) {
       return { success: false, error: "Invalid email or password." };
     }
     if (message.includes("auth/too-many-requests")) {
@@ -145,6 +157,79 @@ export async function signInWithFirebaseEmail(
   }
 }
 
+export async function sendFirebaseVerificationEmail(
+  email: string,
+  password: string,
+): Promise<{ success: boolean; error?: string }> {
+  const clientAuth = getClientAuth();
+  if (!clientAuth) {
+    return { success: false, error: "Firebase Authentication is not configured." };
+  }
+
+  try {
+    const credential = await signInWithEmailAndPassword(clientAuth, email, password);
+    if (credential.user.emailVerified) {
+      return { success: true };
+    }
+    await sendEmailVerification(credential.user, {
+      url: `${window.location.origin}/auth/verify?provider=firebase&verified=1`,
+    });
+    return { success: true };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes("auth/unauthorized-domain")) {
+      return {
+        success: false,
+        error: `Add "${window.location.hostname}" to Firebase Authentication's authorized domains.`,
+      };
+    }
+    if (message.includes("auth/invalid-credential") || message.includes("auth/user-not-found")) {
+      return { success: false, error: "Could not sign in to send the verification link. Check the email and password." };
+    }
+    return { success: false, error: "Could not send the verification link. Please try again." };
+  }
+}
+
+export async function sendFirebaseVerificationEmailToCurrentUser(): Promise<{ success: boolean; error?: string }> {
+  const clientAuth = getClientAuth();
+  const user = clientAuth?.currentUser;
+  if (!user) {
+    return { success: false, error: "Please register again to resend the verification link." };
+  }
+
+  try {
+    await sendEmailVerification(user, {
+      url: `${window.location.origin}/auth/verify?provider=firebase&verified=1`,
+    });
+    return { success: true };
+  } catch {
+    return { success: false, error: "Could not resend the verification link. Please try again." };
+  }
+}
+
+export async function syncCurrentFirebaseSession(): Promise<{ success: boolean; error?: string }> {
+  const user = getClientAuth()?.currentUser;
+  if (!user) return { success: false };
+
+  try {
+    await user.reload();
+    if (!user.emailVerified) return { success: false };
+    const idToken = await user.getIdToken(true);
+    const response = await fetch("/api/auth/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idToken }),
+    });
+    if (!response.ok) {
+      const data = await response.json() as { error?: string };
+      return { success: false, error: data.error || "Could not finish account verification." };
+    }
+    return { success: true };
+  } catch {
+    return { success: false, error: "Could not finish account verification. Please log in and try again." };
+  }
+}
+
 /**
  * Reset password via Firebase Auth.
  */
@@ -155,7 +240,9 @@ export async function sendFirebasePasswordReset(email: string): Promise<{ succes
   }
 
   try {
-    await sendPasswordResetEmail(clientAuth, email);
+    await sendPasswordResetEmail(clientAuth, email, {
+      url: `${window.location.origin}/auth/login?reset=firebase`,
+    });
     return { success: true };
   } catch (err: unknown) {
     return { success: false, error: err instanceof Error ? err.message : String(err) };

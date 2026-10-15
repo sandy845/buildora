@@ -5,7 +5,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { validateLogin } from "@/lib/auth";
 import { loginUser } from "@/lib/auth/server";
-import { signInWithGoogle } from "@/lib/firebase/client";
+import { isFirebaseClientConfigured } from "@/lib/firebase/config";
+import {
+  sendFirebaseVerificationEmail,
+  signInWithFirebaseEmail,
+  signInWithGoogle,
+} from "@/lib/firebase/client";
 
 function LoginForm() {
   const router = useRouter();
@@ -17,9 +22,11 @@ function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<"email" | "password", string>>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isResendingVerification, setIsResendingVerification] = useState(false);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
   const [submitState, setSubmitState] = useState<"idle" | "success" | "error">("idle");
   const [serverError, setServerError] = useState("");
+  const [verificationMessage, setVerificationMessage] = useState("");
 
 
   function updateField(field: keyof typeof form, value: string) {
@@ -27,6 +34,7 @@ function LoginForm() {
     setErrors((current) => ({ ...current, [field]: undefined }));
     setSubmitState("idle");
     setServerError("");
+    setVerificationMessage("");
   }
 
   async function handleGoogleSignIn() {
@@ -73,7 +81,12 @@ function LoginForm() {
     setServerError("");
 
     try {
-      const result = await loginUser(form);
+      let result = isFirebaseClientConfigured()
+        ? await signInWithFirebaseEmail(form.email, form.password)
+        : await loginUser(form);
+      if ("fallbackToDatabase" in result && result.fallbackToDatabase) {
+        result = await loginUser(form);
+      }
       if (result.error) {
         setServerError(result.error);
         setSubmitState("error");
@@ -91,6 +104,15 @@ function LoginForm() {
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  async function handleResendVerification() {
+    setIsResendingVerification(true);
+    const result = await sendFirebaseVerificationEmail(form.email, form.password);
+    setVerificationMessage(result.success
+      ? "A new verification link has been sent. Check your inbox."
+      : result.error || "Could not send a verification link.");
+    setIsResendingVerification(false);
   }
 
   return (
@@ -207,6 +229,21 @@ function LoginForm() {
           {submitState === "error" && (
             <p className="rounded-xl border border-red-200 bg-red-50 px-3.5 py-2 text-xs font-medium text-red-700">
               {serverError || "Please fix the highlighted fields and try again."}
+            </p>
+          )}
+          {submitState === "error" && serverError.startsWith("Please verify your email") && (
+            <button
+              type="button"
+              onClick={() => void handleResendVerification()}
+              disabled={isResendingVerification}
+              className="w-full text-center text-xs font-semibold text-[#a98032] hover:underline disabled:opacity-60"
+            >
+              {isResendingVerification ? "Sending verification link..." : "Resend verification link"}
+            </button>
+          )}
+          {verificationMessage && (
+            <p className="rounded-xl border border-[#e4dec8] bg-white px-3.5 py-2 text-center text-xs text-[#625d57]">
+              {verificationMessage}
             </p>
           )}
 

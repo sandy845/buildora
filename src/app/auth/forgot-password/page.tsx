@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useState } from "react";
 import { validateReset } from "@/lib/auth";
+import { isFirebaseClientConfigured } from "@/lib/firebase/config";
+import { sendFirebasePasswordReset } from "@/lib/firebase/client";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -23,17 +25,30 @@ export default function ForgotPasswordPage() {
     setIsSubmitting(true);
     setStatus("idle");
 
-    const response = await fetch("/api/auth/forgot-password", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
-    });
-    setIsSubmitting(false);
-    if (!response.ok) {
+    try {
+      if (isFirebaseClientConfigured()) {
+        const result = await sendFirebasePasswordReset(email);
+        if (!result.success) {
+          setStatus("error");
+          return;
+        }
+      } else {
+        const response = await fetch("/api/auth/forgot-password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email }),
+        });
+        if (!response.ok) {
+          setStatus("error");
+          return;
+        }
+      }
+      setStatus("success");
+    } catch {
       setStatus("error");
-      return;
+    } finally {
+      setIsSubmitting(false);
     }
-    setStatus("success");
   }
 
   return (

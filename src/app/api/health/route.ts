@@ -46,10 +46,7 @@ export async function GET() {
     heapTotalMb: Math.round(memoryUsage.heapTotal / 1024 / 1024),
   };
 
-  const isHealthy =
-    dbStatus === "connected" &&
-    (process.env.NODE_ENV !== "production" ||
-      (sessionSecretConfigured && emailStatus.configured));
+  const isHealthy = dbStatus === "connected" && sessionSecretConfigured;
   const totalDurationMs = Date.now() - startTime;
 
   return NextResponse.json(

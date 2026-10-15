@@ -5,7 +5,12 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { validateRegister } from "@/lib/auth";
 import { registerUser, resendVerificationEmail } from "@/lib/auth/server";
-import { signInWithGoogle } from "@/lib/firebase/client";
+import { isFirebaseClientConfigured } from "@/lib/firebase/config";
+import {
+  sendFirebaseVerificationEmail,
+  sendFirebaseVerificationEmailToCurrentUser,
+  signInWithGoogle,
+} from "@/lib/firebase/client";
 
 function PasswordVisibilityIcon({ visible }: { visible: boolean }) {
   return (
@@ -97,8 +102,17 @@ export default function RegisterPage() {
         return;
       }
 
-      setSubmitState("success");
       const userEmail = form.email.trim();
+      if (result.verificationProvider === "firebase") {
+        const verification = await sendFirebaseVerificationEmail(userEmail, form.password);
+        if (!verification.success) {
+          setServerError(verification.error || "Account created, but we could not send the verification link.");
+          setSubmitState("error");
+          return;
+        }
+      }
+
+      setSubmitState("success");
       const userName = form.name.trim();
       if (typeof window !== "undefined") {
         localStorage.setItem("buildora_last_registered_email", userEmail);
@@ -106,7 +120,11 @@ export default function RegisterPage() {
         localStorage.setItem("buildora_dev_google_email", userEmail);
         localStorage.setItem("buildora_dev_google_name", userName);
       }
-      router.push(`/auth/login?registered=true${userEmail ? `&email=${encodeURIComponent(userEmail)}` : ""}`);
+      if (result.verificationProvider === "firebase") {
+        router.push(`/auth/verify?provider=firebase&email=${encodeURIComponent(userEmail)}`);
+      } else {
+        router.push(`/auth/login?registered=true${userEmail ? `&email=${encodeURIComponent(userEmail)}` : ""}`);
+      }
     } catch {
       setServerError("Registration is temporarily unavailable. Please try again later.");
       setSubmitState("error");
@@ -119,6 +137,18 @@ export default function RegisterPage() {
     setIsSubmitting(true);
     setResendState("");
     try {
+      if (isFirebaseClientConfigured()) {
+        const firebaseResult = await sendFirebaseVerificationEmailToCurrentUser();
+        if (firebaseResult.success) {
+          setResendState("Verification link sent. Check your inbox.");
+          return;
+        }
+        if (firebaseResult.error !== "Please register again to resend the verification link.") {
+          setResendState(firebaseResult.error || "Could not send the verification link.");
+          return;
+        }
+      }
+
       const result = await resendVerificationEmail(form.email);
       setResendState(result.error || "Verification email sent. Check your inbox.");
     } catch {
