@@ -1,0 +1,9 @@
+flowchart LR
+    Visitor[Visitor] -->|service enquiry| B((0. Buildora Portal))
+    B -->|confirmation / public content| Visitor
+    Customer[Customer / Administrator] -->|credentials and authorised actions| B
+    B -->|project and lead responses| Customer
+    B -->|read / write business records| DB[(D1 PostgreSQL)]
+    DB -->|persisted records| B
+    B -. configured only .-> Email[Email Provider]
+    B -. configured only .-> Store[S3-Compatible Storage]

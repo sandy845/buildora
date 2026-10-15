@@ -24,9 +24,10 @@ type Props = {
   reports: { quotedValue: number; convertedLeads: number; projectsByStatus: { status: string; count: number }[] };
   calendar: { id: string; title: string; date: string; isPast: boolean; status: string; projectId: string; projectName: string; clientName: string }[];
   customers: { id: string; name: string; email: string }[];
+  dataUnavailable: boolean;
 };
 
-export function AdminDashboardClient({ navItems, stats, projects, leads, activity, finance, reports = { quotedValue: 0, convertedLeads: 0, projectsByStatus: [] }, calendar = [], customers }: Props) {
+export function AdminDashboardClient({ navItems, stats, projects, leads, activity, finance, reports = { quotedValue: 0, convertedLeads: 0, projectsByStatus: [] }, calendar = [], customers, dataUnavailable }: Props) {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [projectStatus, setProjectStatus] = useState<ProjectStatus>("All statuses");
@@ -257,6 +258,11 @@ export function AdminDashboardClient({ navItems, stats, projects, leads, activit
       )}
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-10 lg:py-10">
+        {dataUnavailable && (
+          <div role="status" className="mb-6 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">
+            Dashboard data is temporarily unavailable. The values below are not current; retry after the database connection is restored.
+          </div>
+        )}
         <div className="flex flex-col justify-between gap-5 border-b border-border pb-8 sm:flex-row sm:items-end">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">Operations overview</p>

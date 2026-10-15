@@ -18,7 +18,7 @@ export function Trust() {
               
               <div className="flex items-center justify-between">
                 <span className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-[#a98032]">
-                  SPEC 0{index + 1} //
+                  SPEC 0{index + 1} {"//"}
                 </span>
                 <span className="inline-flex h-2 w-2 rounded-full bg-[#c5a059] opacity-75 ring-4 ring-[#c5a059]/20" />
               </div>

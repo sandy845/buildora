@@ -27,6 +27,7 @@ export default async function AdminDashboardPage() {
           reports={data.reports}
           calendar={data.calendar}
           customers={data.customers}
+          dataUnavailable={data.dataUnavailable}
         />
       </div>
     </div>

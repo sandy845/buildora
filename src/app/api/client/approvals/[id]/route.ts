@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/server";
-import { prisma } from "@/lib/db/prisma";
+import { prisma, type PrismaTransactionClient } from "@/lib/db/prisma";
 import { recordAudit } from "@/lib/audit";
+import { canAccessProject } from "@/lib/services/shared";
 
 const allowedStatuses = ["approved", "rejected", "superseded"] as const;
 
@@ -23,11 +24,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       select: { id: true, projectId: true, project: { select: { customerId: true, name: true } }, status: true },
     });
     if (!approval) return NextResponse.json({ error: "Approval not found." }, { status: 404 });
-    if (user.role !== "admin" && approval.project.customerId !== user.id) {
+    if (!canAccessProject(user, approval.project.customerId)) {
       return NextResponse.json({ error: "Forbidden." }, { status: 403 });
     }
 
-    const updated = await prisma.$transaction(async (tx: any) => {
+    const updated = await prisma.$transaction(async (tx: PrismaTransactionClient) => {
       const result = await tx.approval.update({
         where: { id },
         data: { status, comments, decidedAt: new Date() },

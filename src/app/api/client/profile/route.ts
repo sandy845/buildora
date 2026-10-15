@@ -1,23 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth/server";
+import { getCurrentUser, setSession } from "@/lib/auth/server";
 import { getUser, updateUser } from "@/lib/db/data-access";
-import { cookies } from "next/headers";
-import { createHmac } from "node:crypto";
-
-/** Duplicate of the session signing logic from auth/server.ts so we can call it from a Route Handler (which cannot import "use server" modules). */
-function getAuthSecret() {
-  return process.env.AUTH_SECRET || "buildora_super_secret_session_key_32_chars_minimum_length_fallback";
-}
-function encode(value: string) {
-  return Buffer.from(value, "utf8").toString("base64url");
-}
-function sign(value: string) {
-  return createHmac("sha256", getAuthSecret()).update(value).digest("base64url");
-}
-function buildSessionToken(payload: Record<string, unknown>) {
-  const body = encode(JSON.stringify(payload));
-  return `${body}.${sign(body)}`;
-}
 
 export async function GET() {
   const user = await getCurrentUser();
@@ -55,27 +38,12 @@ export async function PATCH(request: NextRequest) {
 
     const updated = await updateUser({ id: user.id }, { name });
 
-    // Refresh the session cookie with the updated name so dashboard/profile reflects it immediately
-    const sessionLifetimeSeconds = 60 * 60 * 24 * 7;
-    const token = buildSessionToken({
-      userId: user.id,
-      role: user.role,
-      email: account.email,
-      name,
-      expiresAt: Date.now() + sessionLifetimeSeconds * 1000,
-    });
-    const cookieStore = await cookies();
-    cookieStore.set("buildora_session", token, {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      maxAge: sessionLifetimeSeconds,
-    });
+    await setSession(user.id, user.role, account.email, name);
 
     return NextResponse.json({ success: true, account: { name: updated.name, email: account.email } });
   } catch (error) {
     console.error("[api/client/profile] Failed to update profile:", error);
-    return NextResponse.json({ error: "Unable to update your profile." }, { status: 500 });
+    const message = error instanceof Error ? error.message : "Unable to update your profile.";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

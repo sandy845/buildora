@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/server";
-import { prisma } from "@/lib/db/prisma";
+import { prisma, type PrismaTransactionClient } from "@/lib/db/prisma";
 
 const seedProjectId = "22222222-2222-2222-2222-222222222222";
 const seedPhaseId = "22222222-2222-2222-2222-222222222223";
@@ -26,7 +26,7 @@ export async function POST() {
   if (!user) return NextResponse.json({ error: "Please log in first." }, { status: 401 });
   if (user.role !== "customer") return NextResponse.json({ error: "Only customer accounts can be seeded." }, { status: 403 });
 
-  await prisma.$transaction(async (tx: any) => {
+  await prisma.$transaction(async (tx: PrismaTransactionClient) => {
     await tx.project.upsert({
       where: { id: seedProjectId },
       update: { customerId: user.id, progress: 68, status: "in_progress", deletedAt: null },

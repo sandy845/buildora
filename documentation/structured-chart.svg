@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="430" viewBox="0 0 1000 430">
+  <defs>
+    <style>
+      .title{font:700 24px Arial;fill:#183247}.text{font:600 15px Arial;fill:#183247}
+      .box{fill:#eef4f7;stroke:#36536b;stroke-width:2}.root{fill:#edf7f4;stroke:#2c7165;stroke-width:3}
+      .line{stroke:#8193a0;stroke-width:2;fill:none}
+    </style>
+  </defs>
+  <rect width="1000" height="430" fill="white"/>
+  <text x="500" y="40" text-anchor="middle" class="title">Structured chart: major application modules</text>
+  <rect x="365" y="70" width="270" height="56" rx="10" class="root"/><text x="500" y="104" text-anchor="middle" class="text">Buildora web application</text>
+  <path d="M500 126V160M125 160H875M125 160V190M375 160V190M625 160V190M875 160V190" class="line"/>
+  <rect x="35" y="190" width="180" height="58" rx="9" class="box"/><text x="125" y="225" text-anchor="middle" class="text">Public experience</text>
+  <rect x="285" y="190" width="180" height="58" rx="9" class="box"/><text x="375" y="225" text-anchor="middle" class="text">Identity and access</text>
+  <rect x="535" y="190" width="180" height="58" rx="9" class="box"/><text x="625" y="225" text-anchor="middle" class="text">Customer workspace</text>
+  <rect x="785" y="190" width="180" height="58" rx="9" class="box"/><text x="875" y="225" text-anchor="middle" class="text">Admin workflows</text>
+  <path d="M125 248V280M375 248V280M625 248V280M875 248V280" class="line"/>
+  <rect x="35" y="280" width="180" height="76" rx="9" class="box"/><text x="125" y="310" text-anchor="middle" class="text">Services / portfolio</text><text x="125" y="334" text-anchor="middle" class="text">Enquiry / estimate</text>
+  <rect x="285" y="280" width="180" height="76" rx="9" class="box"/><text x="375" y="310" text-anchor="middle" class="text">Validation</text><text x="375" y="334" text-anchor="middle" class="text">Signed sessions / roles</text>
+  <rect x="535" y="280" width="180" height="76" rx="9" class="box"/><text x="625" y="310" text-anchor="middle" class="text">Owned project records</text><text x="625" y="334" text-anchor="middle" class="text">Approvals / messages*</text>
+  <rect x="785" y="280" width="180" height="76" rx="9" class="box"/><text x="875" y="310" text-anchor="middle" class="text">Lead / project / quote</text><text x="875" y="334" text-anchor="middle" class="text">Manual payment record</text>
+  <text x="500" y="397" text-anchor="middle" class="text">All persisted workflows pass through server-side checks and Prisma data access. *Selected routes exist.</text>
+</svg>

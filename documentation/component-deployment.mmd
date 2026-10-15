@@ -1,0 +1,8 @@
+flowchart LR
+    Browser[Browser] -->|HTTPS| Next[Next.js / Node.js application]
+    Next --> Auth[Auth, validation, ownership checks]
+    Auth --> Prisma[Prisma data access]
+    Prisma --> DB[(PostgreSQL)]
+    Next -. configured .-> Email[Resend / Postmark / SMTP]
+    Next -. configured .-> S3[S3-compatible storage]
+    Next -. optional token verification .-> Firebase[Firebase Admin]

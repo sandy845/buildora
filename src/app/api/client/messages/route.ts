@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/server";
-import { prisma } from "@/lib/db/prisma";
+import { prisma, type PrismaTransactionClient } from "@/lib/db/prisma";
 
 export async function POST(request: NextRequest) {
   const user = await getCurrentUser();
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
       : await prisma.conversation.create({ data: { projectId, type: "project", subject: `${project.name} updates` } });
     if (!conversation) return NextResponse.json({ error: "Conversation not found." }, { status: 404 });
 
-    const result = await prisma.$transaction(async (tx: any) => {
+    const result = await prisma.$transaction(async (tx: PrismaTransactionClient) => {
       const message = await tx.message.create({
         data: { conversationId: conversation.id, senderId: user.id, body: messageBody },
         select: { id: true, body: true, sentAt: true, conversationId: true },
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
         const admins = await tx.user.findMany({ where: { role: "admin", accountStatus: "active", deletedAt: null }, select: { id: true } });
         if (admins.length) {
           await tx.notification.createMany({
-            data: admins.map((admin: any) => ({ userId: admin.id, projectId, type: "message" as const, title: "New project message", body: `${user.name} sent a new message in ${project.name}.` })),
+            data: admins.map((admin: { id: string }) => ({ userId: admin.id, projectId, type: "message" as const, title: "New project message", body: `${user.name} sent a new message in ${project.name}.` })),
           });
         }
       }

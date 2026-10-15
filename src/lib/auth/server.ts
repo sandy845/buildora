@@ -5,11 +5,11 @@ import { promisify } from "node:util";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createUser, getUser, updateUser } from "@/lib/db/data-access";
+import { prisma } from "@/lib/db/prisma";
 import { validateLogin, validateRegister } from "@/lib/auth";
 import { authLoginLimiter, authRegisterLimiter, authVerificationLimiter, getClientIp } from "@/lib/rate-limit";
 import { sendPasswordResetEmail, sendVerificationEmail } from "@/lib/email";
 import { getAdminAuth } from "@/lib/firebase/admin";
-import { firestoreCreate, firestoreFindOne, firestoreUpdate } from "@/lib/firebase/firestore";
 import type { UserRole } from "@/lib/types/models";
 
 const scrypt = promisify(scryptCallback);
@@ -35,12 +35,16 @@ export type AuthActionState = {
   success?: boolean;
 };
 
+function allowDevSessionFallback() {
+  return process.env.ALLOW_DEV_SESSION_FALLBACK === "1" || process.env.NODE_ENV === "test";
+}
+
 function getAuthSecret() {
   const secret = process.env.AUTH_SECRET;
   if (process.env.NODE_ENV === "production" && (!secret || secret.length < 32)) {
     throw new Error("AUTH_SECRET must be configured with at least 32 characters in production.");
   }
-  return secret || "buildora_super_secret_session_key_32_chars_minimum_length_fallback";
+  return secret || (allowDevSessionFallback() ? "buildora_test_session_key_32_chars_minimum_length" : "");
 }
 
 function encode(value: string) {
@@ -94,7 +98,12 @@ export async function setSession(userId: string, role: AuthRole, email?: string,
   });
 }
 
-export async function getCurrentUser() {
+export async function getCurrentUser(): Promise<{
+  id: string;
+  name: string;
+  email: string;
+  role: AuthRole;
+} | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get(sessionCookieName)?.value;
   if (!token) return null;
@@ -105,8 +114,7 @@ export async function getCurrentUser() {
   try {
     const user = await getUser({ id: session.userId });
     if (!user || user.accountStatus !== "active" || user.deletedAt) {
-      // Fallback to session info when DB lookup fails (e.g. dev mode in-memory reset)
-      if (session.email) {
+      if (allowDevSessionFallback() && session.email) {
         return {
           id: session.userId,
           name: session.name || session.email.split("@")[0] || "User",
@@ -125,8 +133,7 @@ export async function getCurrentUser() {
     };
   } catch (error) {
     console.error("Buildora session lookup error:", error);
-    // Even on error, try to return session data so the user isn't kicked out
-    if (session.email) {
+    if (allowDevSessionFallback() && session.email) {
       return {
         id: session.userId,
         name: session.name || session.email.split("@")[0] || "User",
@@ -163,6 +170,9 @@ export async function createFirebaseSession(
   if (adminAuth) {
     try {
       const decoded = await adminAuth.verifyIdToken(idToken);
+      if (!decoded.email || decoded.email_verified !== true) {
+        return { success: false, error: "A verified email address is required." };
+      }
       uid = decoded.uid;
       email = decoded.email || email;
       name = decoded.name || name;
@@ -170,37 +180,43 @@ export async function createFirebaseSession(
       console.error("[firebase-auth] Failed to verify ID token:", err);
       return { success: false, error: "Invalid authentication token." };
     }
+  } else if (process.env.NODE_ENV === "production" || process.env.E2E_TEST !== "1") {
+    return { success: false, error: "Firebase Admin SDK is not configured for this deployment." };
   } else {
-    // Development fallback without admin credentials
     uid = `fb-${Date.now()}`;
     email = email || "user@example.com";
   }
 
   const normalizedEmail = email.toLowerCase().trim();
+  if (!normalizedEmail) {
+    return { success: false, error: "The authentication provider did not return an email address." };
+  }
   let existing = await getUser({ normalizedEmail });
 
   if (!existing) {
-    // If first user, make admin, otherwise customer
-    const role: AuthRole = normalizedEmail.includes("admin") ? "admin" : "customer";
+    const configuredAdmins = (process.env.BUILDORA_ADMIN_EMAILS || "")
+      .split(",")
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean);
+    const role: AuthRole = configuredAdmins.includes(normalizedEmail) ? "admin" : "customer";
     existing = await createUser({
-      id: uid,
       name: name || email.split("@")[0] || "Buildora Member",
       email,
       normalizedEmail,
       role,
       accountStatus: "active",
-      emailVerifiedAt: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      emailVerifiedAt: new Date(),
     });
 
     if (adminAuth) {
       try {
-        await adminAuth.setCustomUserClaims(uid, { role });
+        await adminAuth.setCustomUserClaims(uid, { role, userId: existing.id });
       } catch (claimErr) {
         console.warn("[firebase-auth] Could not set custom claim:", claimErr);
       }
     }
+  } else if (existing.accountStatus !== "active" || existing.deletedAt) {
+    return { success: false, error: "This account is not available." };
   } else if (name && (!existing.name || existing.name === "Buildora Client" || existing.name === "Demo Customer" || existing.name === "Buildora Member")) {
     try {
       await updateUser({ id: existing.id }, { name });
@@ -268,7 +284,6 @@ export async function registerUser(values: Record<string, unknown>): Promise<Aut
         phoneNumber: phone.startsWith("+") ? phone : undefined,
       });
       firebaseUid = fbUser.uid;
-      await adminAuth.setCustomUserClaims(fbUser.uid, { role: "customer" });
     } catch (fbErr: unknown) {
       const msg = fbErr instanceof Error ? fbErr.message : String(fbErr);
       if (msg.includes("email-already-exists")) {
@@ -287,7 +302,6 @@ export async function registerUser(values: Record<string, unknown>): Promise<Aut
   let emailResult: Awaited<ReturnType<typeof sendVerificationEmail>>;
   try {
     created = await createUser({
-      id: firebaseUid,
       name,
       email: String(values.email || "").trim(),
       normalizedEmail: email,
@@ -296,14 +310,17 @@ export async function registerUser(values: Record<string, unknown>): Promise<Aut
       role: "customer",
       accountStatus: "active",
     });
+    if (adminAuth && firebaseUid) {
+      await adminAuth.setCustomUserClaims(firebaseUid, { role: "customer", userId: created.id });
+    }
 
     rawToken = generateVerificationOtp();
-    await firestoreCreate("emailVerificationTokens", {
+    await prisma.emailVerificationToken.create({ data: {
       userId: created.id,
       tokenHash: createHash("sha256").update(rawToken).digest("hex"),
-      expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
       usedAt: null,
-    });
+    } });
 
     emailResult = await sendVerificationEmail(email, name, rawToken);
   } catch (error) {
@@ -313,7 +330,7 @@ export async function registerUser(values: Record<string, unknown>): Promise<Aut
   if (!emailResult.sent) {
     // If email is not configured in local dev, allow automatic activation so user can log in
     if (process.env.NODE_ENV !== "production") {
-      await updateUser({ id: created.id }, { emailVerifiedAt: new Date().toISOString() });
+      await updateUser({ id: created.id }, { emailVerifiedAt: new Date() });
       return { success: true };
     }
     return {
@@ -347,12 +364,12 @@ export async function resendVerificationEmail(emailValue: string): Promise<AuthA
   const tokenHash = createHash("sha256").update(rawToken).digest("hex");
   let result: Awaited<ReturnType<typeof sendVerificationEmail>>;
   try {
-    await firestoreCreate("emailVerificationTokens", {
+    await prisma.emailVerificationToken.create({ data: {
       userId: user.id,
       tokenHash,
-      expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
       usedAt: null,
-    });
+    } });
     result = await sendVerificationEmail(user.email, user.name, rawToken);
   } catch (error) {
     console.error("[auth/verification] Failed to create token or send email:", error);
@@ -419,7 +436,7 @@ export async function loginUser(values: Record<string, unknown>): Promise<AuthAc
   }
 
   try {
-    await updateUser({ id: user.id }, { lastLoginAt: new Date().toISOString() });
+    await updateUser({ id: user.id }, { lastLoginAt: new Date() });
     await setSession(user.id, user.role, user.email, user.name);
   } catch (error) {
     console.error("[auth/login] Failed to update login state or create a session:", error);
@@ -434,17 +451,16 @@ export async function verifyEmailToken(rawToken: string): Promise<boolean> {
   if (!/^\d{6}$/.test(otp)) return false;
   const tokenHash = createHash("sha256").update(otp).digest("hex");
 
-  const tokenDoc = await firestoreFindOne<{ id: string; userId: string; usedAt?: string; expiresAt: string }>(
-    "emailVerificationTokens",
-    { where: [{ field: "tokenHash", operator: "==", value: tokenHash }] }
-  );
+  const tokenDoc = await prisma.emailVerificationToken.findFirst({ where: { tokenHash } });
 
   if (!tokenDoc || tokenDoc.usedAt || new Date(tokenDoc.expiresAt) <= new Date()) {
     return false;
   }
 
-  await firestoreUpdate("emailVerificationTokens", tokenDoc.id, { usedAt: new Date().toISOString() });
-  await updateUser({ id: tokenDoc.userId }, { emailVerifiedAt: new Date().toISOString() });
+  await prisma.$transaction([
+    prisma.emailVerificationToken.update({ where: { id: tokenDoc.id }, data: { usedAt: new Date() } }),
+    prisma.user.update({ where: { id: tokenDoc.userId }, data: { emailVerifiedAt: new Date() } }),
+  ]);
   return true;
 }
 
@@ -456,12 +472,12 @@ export async function requestPasswordReset(email: string): Promise<void> {
   const rawToken = randomBytes(32).toString("hex");
   const tokenHash = createHash("sha256").update(rawToken).digest("hex");
 
-  await firestoreCreate("passwordResetTokens", {
+  await prisma.passwordResetToken.create({ data: {
     userId: user.id,
     tokenHash,
-    expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    expiresAt: new Date(Date.now() + 60 * 60 * 1000),
     usedAt: null,
-  });
+  } });
 
   const result = await sendPasswordResetEmail(user.email, user.name, rawToken);
   if (!result.sent) {
@@ -471,10 +487,7 @@ export async function requestPasswordReset(email: string): Promise<void> {
 
 export async function resetPassword(rawToken: string, password: string): Promise<boolean> {
   const tokenHash = createHash("sha256").update(rawToken).digest("hex");
-  const tokenDoc = await firestoreFindOne<{ id: string; userId: string; usedAt?: string; expiresAt: string }>(
-    "passwordResetTokens",
-    { where: [{ field: "tokenHash", operator: "==", value: tokenHash }] }
-  );
+  const tokenDoc = await prisma.passwordResetToken.findFirst({ where: { tokenHash } });
 
   if (!tokenDoc || tokenDoc.usedAt || new Date(tokenDoc.expiresAt) <= new Date()) {
     return false;
@@ -484,7 +497,7 @@ export async function resetPassword(rawToken: string, password: string): Promise
   const derivedKey = (await scrypt(password, salt, 64)) as Buffer;
   const passwordHash = `scrypt:${salt}:${derivedKey.toString("hex")}`;
 
-  await firestoreUpdate("passwordResetTokens", tokenDoc.id, { usedAt: new Date().toISOString() });
+  await prisma.passwordResetToken.update({ where: { id: tokenDoc.id }, data: { usedAt: new Date() } });
   await updateUser({ id: tokenDoc.userId }, { passwordHash });
 
   // Update in Firebase Auth if available

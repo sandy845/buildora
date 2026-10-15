@@ -1,0 +1,13 @@
+flowchart TD
+    Start((Start)) --> Form[Enter enquiry]
+    Form --> Check[Rate-limit and validate]
+    Check --> Valid{Valid input?}
+    Valid -- No --> Errors[Return field errors]
+    Errors --> End((End))
+    Valid -- Yes --> Persist[Persist lead]
+    Persist --> LoggedIn{Customer session?}
+    LoggedIn -- Yes --> Project[Attempt linked project creation]
+    LoggedIn -- No --> Notify[Attempt configured notifications]
+    Project --> Notify
+    Notify --> Success[Return success and lead ID]
+    Success --> End

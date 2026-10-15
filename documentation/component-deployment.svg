@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="540" viewBox="0 0 1000 540">
+  <defs>
+    <marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="#36536b"/></marker>
+    <style>
+      .title{font:700 23px Arial;fill:#183247}.label{font:600 15px Arial;fill:#183247}.small{font:13px Arial;fill:#526878}
+      .box{fill:#eef4f7;stroke:#36536b;stroke-width:2}.system{fill:#edf7f4;stroke:#2c7165;stroke-width:3}
+      .optional{fill:#fff8e9;stroke:#b07b20;stroke-width:2}.link{stroke:#36536b;stroke-width:2.2;fill:none;marker-end:url(#a)}
+      .dash{stroke-dasharray:7 6}
+    </style>
+  </defs>
+  <rect width="1000" height="540" fill="white"/>
+  <text x="500" y="35" text-anchor="middle" class="title">Component and deployment view</text>
+  <rect x="35" y="95" width="215" height="112" rx="14" class="box"/>
+  <text x="142" y="128" text-anchor="middle" class="label">Client device</text><text x="142" y="153" text-anchor="middle" class="small">Browser and responsive UI</text><text x="142" y="176" text-anchor="middle" class="small">HTTPS in production (required)</text>
+  <rect x="310" y="70" width="410" height="325" rx="18" class="system"/>
+  <text x="515" y="103" text-anchor="middle" class="label">APPLICATION HOST — NEXT.JS / NODE.JS</text>
+  <rect x="345" y="125" width="340" height="52" rx="8" class="box"/><text x="515" y="157" text-anchor="middle" class="small">Pages, route handlers, server actions</text>
+  <rect x="345" y="194" width="340" height="52" rx="8" class="box"/><text x="515" y="226" text-anchor="middle" class="small">Authentication, validation, domain checks</text>
+  <rect x="345" y="263" width="340" height="52" rx="8" class="box"/><text x="515" y="295" text-anchor="middle" class="small">Prisma client and integration adapters</text>
+  <rect x="345" y="332" width="340" height="42" rx="8" class="box"/><text x="515" y="358" text-anchor="middle" class="small">Runtime configuration / health endpoint</text>
+  <rect x="775" y="90" width="190" height="70" rx="10" class="box"/><text x="870" y="120" text-anchor="middle" class="label">PostgreSQL</text><text x="870" y="143" text-anchor="middle" class="small">managed / operated DB</text>
+  <rect x="775" y="190" width="190" height="58" rx="10" class="optional"/><text x="870" y="225" text-anchor="middle" class="small">Email provider (optional)</text>
+  <rect x="775" y="275" width="190" height="58" rx="10" class="optional"/><text x="870" y="310" text-anchor="middle" class="small">S3 storage (optional)</text>
+  <rect x="775" y="360" width="190" height="58" rx="10" class="optional"/><text x="870" y="395" text-anchor="middle" class="small">Firebase Admin (optional)</text>
+  <path d="M250 151L335 151" class="link"/><path d="M685 288L765 125" class="link"/>
+  <path d="M685 215L765 220" class="link dash"/><path d="M685 288L765 304" class="link dash"/>
+  <path d="M685 218L765 389" class="link dash"/>
+  <text x="500" y="455" text-anchor="middle" class="small">Logical deployment proposal; actual hosting, network controls, scaling and production state were not verified.</text>
+  <text x="500" y="480" text-anchor="middle" class="small">Configuration secrets belong in a deployment secret manager, not in source or client bundles.</text>
+</svg>

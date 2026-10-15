@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="360" viewBox="0 0 1000 360">
+  <defs>
+    <style>
+      .title{font:700 23px Arial;fill:#183247}.box{fill:#eef4f7;stroke:#36536b;stroke-width:2}
+      .head{fill:#36536b}.name{font:700 15px Arial;fill:white}.text{font:13px Arial;fill:#30495c}
+      .link{stroke:#8193a0;stroke-width:2}.label{font:12px Arial;fill:#526878}
+    </style>
+  </defs>
+  <rect width="1000" height="360" fill="white"/>
+  <text x="500" y="34" text-anchor="middle" class="title">Illustrative object snapshot — synthetic example only</text>
+  <g transform="translate(40 105)">
+    <rect width="205" height="115" rx="8" class="box"/><path d="M0 8Q0 0 8 0H197Q205 0 205 8V34H0Z" class="head"/>
+    <text x="102" y="23" text-anchor="middle" class="name">u1 : User</text><text x="14" y="60" class="text">role = customer</text><text x="14" y="83" class="text">email = user@example.invalid</text>
+  </g>
+  <g transform="translate(300 105)">
+    <rect width="205" height="115" rx="8" class="box"/><path d="M0 8Q0 0 8 0H197Q205 0 205 8V34H0Z" class="head"/>
+    <text x="102" y="23" text-anchor="middle" class="name">l1 : Lead</text><text x="14" y="60" class="text">status = qualified</text><text x="14" y="83" class="text">customerId = u1.id</text>
+  </g>
+  <g transform="translate(560 105)">
+    <rect width="205" height="115" rx="8" class="box"/><path d="M0 8Q0 0 8 0H197Q205 0 205 8V34H0Z" class="head"/>
+    <text x="102" y="23" text-anchor="middle" class="name">p1 : Project</text><text x="14" y="60" class="text">status = planning</text><text x="14" y="83" class="text">originatingLeadId = l1.id</text>
+  </g>
+  <g transform="translate(800 105)">
+    <rect width="165" height="115" rx="8" class="box"/><path d="M0 8Q0 0 8 0H157Q165 0 165 8V34H0Z" class="head"/>
+    <text x="82" y="23" text-anchor="middle" class="name">q1 : Quotation</text><text x="12" y="60" class="text">status = draft</text><text x="12" y="83" class="text">projectId = p1.id</text>
+  </g>
+  <path d="M245 160H292M505 160H552M765 160H792" class="link"/>
+  <text x="270" y="148" text-anchor="middle" class="label">submits</text><text x="530" y="148" text-anchor="middle" class="label">originates</text><text x="778" y="148" text-anchor="middle" class="label">has</text>
+  <text x="500" y="290" text-anchor="middle" class="text">All identifiers and values above are invented, non-production examples. No customer record was queried or copied.</text>
+</svg>

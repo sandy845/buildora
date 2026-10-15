@@ -1,10 +1,6 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Dynamic Prisma delegates preserve the existing generic data-access API. */
 import { getCurrentUser, requireRole } from "@/lib/auth/server";
-import {
-  firestoreFind,
-  firestoreGet,
-  firestoreCount,
-} from "@/lib/firebase/firestore";
-import { clientProject } from "@/data/client-project";
+import { prisma } from "@/lib/db/prisma";
 import { process, projects as homeProjects, reasons, services as homeServices, testimonials, trustStats } from "@/data/home";
 import { expertise, processSteps, values } from "@/data/site";
 import { getProjectBySlug as getMockProjectBySlug, projectCategories, projects } from "@/data/projects";
@@ -26,41 +22,15 @@ const clientNavFallback = [
 ];
 
 const clientStatsFallback = [
-  { label: "Active projects", value: "2", detail: "Across 2 locations", tone: "neutral" },
-  { label: "Overall progress", value: "68%", detail: "+8% this month", tone: "positive" },
-  { label: "Pending approvals", value: "3", detail: "Needs your review", tone: "attention" },
-  { label: "Outstanding payment", value: "₹84,500", detail: "Due 18 Sep 2026", tone: "attention" },
+  { label: "Active projects", value: "0", detail: "No active jobs yet", tone: "neutral" },
+  { label: "Overall progress", value: "0%", detail: "No project in progress", tone: "positive" },
+  { label: "Pending approvals", value: "0", detail: "No pending reviews", tone: "attention" },
+  { label: "Outstanding payment", value: "₹0", detail: "All caught up", tone: "attention" },
 ] as const;
 
-const clientProjectsFallback = [
-  {
-    id: "residence-01",
-    name: "Residence 01",
-    type: "Residential construction",
-    location: "Your project location",
-    progress: 72,
-    milestone: "Electrical & plumbing",
-    due: "Due 24 Sep",
-    color: "bg-amber-500",
-  },
-  {
-    id: "studio-renovation",
-    name: "Studio renovation",
-    type: "Interior renovation",
-    location: "Your project location",
-    progress: 64,
-    milestone: "Cabinet installation",
-    due: "Due 02 Oct",
-    color: "bg-emerald-600",
-  },
-];
+const clientProjectsFallback = [] as const;
 
-const clientActivityFallback = [
-  { title: "Site progress updated", detail: "Residence 01 · 2 hours ago", icon: "building", tone: "dark" },
-  { title: "Quotation ready for review", detail: "Studio renovation · Yesterday", icon: "file", tone: "gold" },
-  { title: "Payment milestone recorded", detail: "Residence 01 · 2 days ago", icon: "card", tone: "green" },
-  { title: "New document uploaded", detail: "Studio renovation · 4 days ago", icon: "folder", tone: "slate" },
-];
+const clientActivityFallback = [] as const;
 
 const adminNavFallback = [
   { label: "Overview", href: "/admin/dashboard", icon: "grid" },
@@ -74,28 +44,17 @@ const adminNavFallback = [
 ];
 
 const adminStatsFallback = [
-  { label: "Total projects", value: "14", detail: "10 residential, 4 commercial", tone: "neutral" },
-  { label: "Active projects", value: "8", detail: "On track: 6 · Attention: 2", tone: "positive" },
-  { label: "New leads", value: "12", detail: "5 require immediate response", tone: "attention" },
-  { label: "Pending quotations", value: "4", detail: "Total value ₹1.45 Cr", tone: "attention" },
+  { label: "Total projects", value: "0", detail: "No projects available", tone: "neutral" },
+  { label: "Active projects", value: "0", detail: "No active projects", tone: "positive" },
+  { label: "New leads", value: "0", detail: "No leads yet", tone: "attention" },
+  { label: "Pending quotations", value: "0", detail: "No quotations pending", tone: "attention" },
 ] as const;
 
-const adminProjectsFallback = [
-  { id: "residence-01", name: "Residence 01", location: "Worli, Mumbai", client: "Vikram Malhotra", type: "Residential", progress: 68, status: "On track", updated: "2 hours ago" },
-  { id: "studio-renovation", name: "Studio renovation", location: "Bandra, Mumbai", client: "Ananya Sharma", type: "Interior", progress: 45, status: "Review needed", updated: "Yesterday" },
-  { id: "villa-elevation", name: "Villa Elevation", location: "Alibaug", client: "Rajesh Singhania", type: "Architecture", progress: 82, status: "On track", updated: "2 days ago" },
-];
+const adminProjectsFallback = [] as const;
 
-const adminLeadsFallback = [
-  { id: "lead-1", name: "Sunil Kapoor", location: "Powai, Mumbai", service: "Full Home Interior", source: "Website", status: "New", received: "35 mins ago", email: "sunil@example.com" },
-  { id: "lead-2", name: "Meera Nair", location: "Khar, Mumbai", service: "Architectural Design", source: "Referral", status: "Contacted", received: "3 hours ago", email: "meera@example.com" },
-];
+const adminLeadsFallback = [] as const;
 
-const adminActivityFallback = [
-  { title: "New lead received", detail: "Sunil Kapoor · 35m ago", icon: "user" },
-  { title: "Site progress updated", detail: "Residence 01 · 2h ago", icon: "building" },
-  { title: "Payment recorded", detail: "Office fit-out · Yesterday", icon: "card" },
-];
+const adminActivityFallback = [] as const;
 
 async function getClientDashboardServerSnapshot() {
   const user = await getCurrentUser();
@@ -115,54 +74,56 @@ async function getClientDashboardServerSnapshot() {
       messages: [],
       notifications: [],
       account: null,
+      dataUnavailable: false,
     };
   }
 
   try {
     const [projects, activity, approvalCount, payments, quotations, documents, messages, notifications] = await Promise.all([
-      firestoreFind("projects", {
-        where: [{ field: "customerId", operator: "==", value: user.id }],
-        orderBy: { field: "updatedAt", direction: "desc" },
+      prisma.project.findMany({
+        where: { customerId: user.id, deletedAt: null },
+        orderBy: { updatedAt: "desc" },
+        include: { milestones: { where: { status: { not: "completed" } }, orderBy: { dueDate: "asc" }, take: 1 } },
       }),
-      firestoreFind("activityEvents", {
-        where: [{ field: "customerId", operator: "==", value: user.id }],
-        orderBy: { field: "createdAt", direction: "desc" },
-        limit: 4,
+      prisma.activityEvent.findMany({
+        where: { project: { customerId: user.id } },
+        orderBy: { createdAt: "desc" },
+        take: 4,
       }),
-      firestoreCount("approvals", {
-        where: [{ field: "status", operator: "==", value: "pending" }],
+      prisma.approval.count({
+        where: { status: "pending", project: { customerId: user.id } },
       }),
-      firestoreFind("payments"),
-      firestoreFind("quotations", {
-        where: [{ field: "customerId", operator: "==", value: user.id }],
-        orderBy: { field: "updatedAt", direction: "desc" },
-        limit: 3,
+      prisma.payment.findMany({
+        where: { project: { customerId: user.id } },
       }),
-      firestoreFind("documents", {
-        where: [{ field: "customerId", operator: "==", value: user.id }],
-        orderBy: { field: "updatedAt", direction: "desc" },
-        limit: 3,
+      prisma.quotation.findMany({
+        where: { project: { customerId: user.id }, deletedAt: null },
+        orderBy: { updatedAt: "desc" },
+        take: 3,
       }),
-      firestoreFind("messages", {
-        where: [{ field: "customerId", operator: "==", value: user.id }],
-        orderBy: { field: "sentAt", direction: "desc" },
-        limit: 3,
+      prisma.document.findMany({
+        where: { project: { customerId: user.id }, deletedAt: null },
+        orderBy: { updatedAt: "desc" },
+        take: 3,
       }),
-      firestoreFind("notifications", {
-        where: [{ field: "userId", operator: "==", value: user.id }],
-        orderBy: { field: "createdAt", direction: "desc" },
-        limit: 3,
+      prisma.message.findMany({
+        where: { conversation: { project: { customerId: user.id } } },
+        orderBy: { sentAt: "desc" },
+        take: 3,
+      }),
+      prisma.notification.findMany({
+        where: { userId: user.id },
+        orderBy: { createdAt: "desc" },
+        take: 3,
       }),
     ]);
 
-    const progressValues = projects.map((p) => Number(p.progress || 0));
-    const avgProgress = progressValues.length ? Math.round(progressValues.reduce((s, v) => s + v, 0) / progressValues.length) : 0;
+    const progressValues = projects.map((p: any) => Number(p.progress || 0));
+    const avgProgress = progressValues.length ? Math.round(progressValues.reduce((s: number, v: number) => s + v, 0) / progressValues.length) : 0;
 
-    const userProjectIds = new Set(projects.map((p) => p.id));
-    const userPayments = payments.filter((p) => (p.customerId === user.id) || (p.projectId && userProjectIds.has(p.projectId as string)));
-    const unpaidTotal = userPayments
-      .filter((p) => p.status !== "paid")
-      .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    const unpaidTotal = payments
+      .filter((p: any) => ["pending", "partially_paid", "overdue"].includes(p.status))
+      .reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
 
     const pendingApprovalCount = projects.length > 0 ? approvalCount : 0;
 
@@ -171,7 +132,7 @@ async function getClientDashboardServerSnapshot() {
         item.label === "Messages"
           ? { ...item, count: messages.length || undefined }
           : item.label === "Notifications"
-            ? { ...item, count: notifications.filter((n) => !n.readAt).length || undefined }
+            ? { ...item, count: notifications.filter((n: any) => !n.readAt).length || undefined }
             : item
       )),
       stats: [
@@ -200,44 +161,47 @@ async function getClientDashboardServerSnapshot() {
           tone: "attention",
         },
       ],
-      projects: projects.map((p) => ({
+      projects: projects.map((p: any) => ({
         id: p.id,
         name: (p.name as string) || "Your Project",
         type: p.status === "planning" ? "Residential construction" : "Project update",
         location: (p.location as string) || "Your project location",
         progress: Number(p.progress || 0),
-        milestone: (p.currentMilestone as string) || "Project planning",
-        due: (p.targetDate as string) || "Pending schedule",
+        milestone: p.milestones?.[0]?.name || "No milestone scheduled",
+        due: p.milestones?.[0]?.dueDate
+          ? new Date(p.milestones[0].dueDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })
+          : "Pending schedule",
         color: p.status === "completed" ? "bg-emerald-600" : "bg-amber-500",
       })),
-      activity: activity.map((e) => ({
+      activity: activity.map((e: any) => ({
         title: (e.description as string) || (e.type as string),
         detail: e.createdAt ? new Date(e.createdAt as string).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }) : "Recently",
         icon: "building",
         tone: "dark",
       })),
-      quotations: quotations.map((q) => ({
+      quotations: quotations.map((q: any) => ({
         id: q.id,
         title: `Quotation #${q.quotationNumber || q.id}`,
         detail: `₹${Number(q.total || 0).toLocaleString("en-IN")} · ${q.status || "draft"}`,
       })),
-      documents: documents.map((d) => ({
+      documents: documents.map((d: any) => ({
         id: d.id,
         title: (d.name as string) || "Document",
         detail: `${d.type || "file"} · Updated recently`,
       })),
-      messages: messages.map((m) => ({
+      messages: messages.map((m: any) => ({
         id: m.id,
         title: (m.body as string) || "",
         detail: "Recently",
       })),
-      notifications: notifications.map((n) => ({
+      notifications: notifications.map((n: any) => ({
         id: n.id,
         title: (n.title as string) || "",
         detail: (n.body as string) || "",
         unread: !n.readAt,
       })),
       account: { name: user.name, email: user.email },
+      dataUnavailable: false,
     };
   } catch (error) {
     console.warn("[data-access] Using client dashboard empty state due to error:", error);
@@ -256,6 +220,7 @@ async function getClientDashboardServerSnapshot() {
       messages: [],
       notifications: [],
       account: { name: user.name, email: user.email },
+      dataUnavailable: true,
     };
   }
 }
@@ -264,93 +229,98 @@ async function getAdminDashboardServerSnapshot() {
   await requireRole("admin");
 
   try {
-    const [projectCount, leadCount, quotationCount, payments, projects, leads, activity, customers, quotations] = await Promise.all([
-      firestoreCount("projects"),
-      firestoreCount("leads", { where: [{ field: "status", operator: "in", value: ["new", "contacted"] }] }),
-      firestoreCount("quotations", { where: [{ field: "status", operator: "in", value: ["draft", "sent"] }] }),
-      firestoreFind("payments"),
-      firestoreFind("projects", { orderBy: { field: "updatedAt", direction: "desc" }, limit: 20 }),
-      firestoreFind("leads", { orderBy: { field: "createdAt", direction: "desc" }, limit: 10 }),
-      firestoreFind("activityEvents", { orderBy: { field: "createdAt", direction: "desc" }, limit: 6 }),
-      firestoreFind("users", { where: [{ field: "role", operator: "==", value: "customer" }], limit: 100 }),
-      firestoreFind("quotations"),
+    const [projectCount, activeProjectCount, leadCount, quotationCount, convertedLeadCount, payments, projects, leads, activity, customers, quotations, projectsByStatus] = await Promise.all([
+      prisma.project.count({ where: { deletedAt: null } }),
+      prisma.project.count({ where: { status: { in: ["planning", "in_progress"] }, deletedAt: null } }),
+      prisma.lead.count({ where: { status: { in: ["new", "contacted"] }, deletedAt: null } }),
+      prisma.quotation.count({ where: { status: { in: ["draft", "sent"] }, deletedAt: null } }),
+      prisma.lead.count({ where: { status: "converted", deletedAt: null } }),
+      prisma.payment.findMany(),
+      prisma.project.findMany({ where: { deletedAt: null }, include: { customer: { select: { name: true } }, services: { include: { service: { select: { name: true } } } } }, orderBy: { updatedAt: "desc" }, take: 20 }),
+      prisma.lead.findMany({ where: { deletedAt: null }, include: { service: { select: { name: true } } }, orderBy: { createdAt: "desc" }, take: 10 }),
+      prisma.activityEvent.findMany({ orderBy: { createdAt: "desc" }, take: 6 }),
+      prisma.user.findMany({ where: { role: "customer", deletedAt: null }, select: { id: true, name: true, email: true }, take: 100 }),
+      prisma.quotation.findMany({ where: { deletedAt: null } }),
+      prisma.project.groupBy({ by: ["status"], where: { deletedAt: null }, _count: { _all: true } }),
     ]);
 
-    const activeProjectCount = projects.filter((p) => ["planning", "in_progress"].includes(p.status as string)).length;
-    const paidTotal = payments.filter((p) => ["paid", "partially_paid"].includes(p.status as string)).reduce((sum, p) => sum + Number(p.amount || 0), 0);
-    const pendingTotal = payments.filter((p) => ["pending", "overdue"].includes(p.status as string)).reduce((sum, p) => sum + Number(p.amount || 0), 0);
-    const quotedTotal = quotations.reduce((sum, q) => sum + Number(q.total || 0), 0);
+    const paidTotal = payments.filter((p: any) => ["paid", "partially_paid"].includes(p.status as string)).reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+    const pendingTotal = payments.filter((p: any) => ["pending", "overdue"].includes(p.status as string)).reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+    const quotedTotal = quotations.reduce((sum: number, q: any) => sum + Number(q.total || 0), 0);
 
-    const projectList = projects.length > 0 ? projects : (adminProjectsFallback as unknown as typeof projects);
-    const leadList = leads.length > 0 ? leads : (adminLeadsFallback as unknown as typeof leads);
+    const projectList = projects.length > 0 ? projects : [];
+    const leadList = leads.length > 0 ? leads : [];
 
     return {
       navItems: adminNavFallback,
       stats: [
         { label: "Total projects", value: String(projectCount || projectList.length), detail: "Across the portfolio", tone: "neutral" },
-        { label: "Active projects", value: String(activeProjectCount || 8), detail: "Currently in motion", tone: "positive" },
+        { label: "Active projects", value: String(activeProjectCount), detail: "Currently in motion", tone: "positive" },
         { label: "New leads", value: String(leadCount || leadList.length), detail: "Needs follow-up", tone: "attention" },
-        { label: "Pending quotations", value: String(quotationCount || 4), detail: `Total value ₹${(quotedTotal || 14500000).toLocaleString("en-IN")}`, tone: "attention" },
+        { label: "Pending quotations", value: String(quotationCount || 0), detail: `Total value ₹${(quotedTotal || 0).toLocaleString("en-IN")}`, tone: "attention" },
       ],
-      projects: projectList.map((project) => ({
+      projects: projectList.map((project: any) => ({
         id: project.id,
         name: (project.name as string) || "Project",
-        location: (project.location as string) || "Mumbai",
+        location: (project.location as string) || "Not specified",
         client: (project.customer as { name?: string })?.name || "Client",
-        type: project.status === "planning" ? "Residential" : "Project",
-        progress: Number(project.progress || 50),
+        type: (project.services as { service: { name: string } }[]).map(({ service }) => service.name).join(", ") || "Project",
+        progress: Number(project.progress || 0),
         status: project.status === "in_progress" ? "On track" : "Review needed",
         updated: project.updatedAt ? new Date(project.updatedAt as string).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }) : "Recently",
       })),
-      leads: leadList.map((lead) => ({
+      leads: leadList.map((lead: any) => ({
         id: lead.id,
         name: (lead.name as string) || "Lead",
         email: (lead.email as string) || "",
         location: (lead.location as string) || "",
-        service: (lead.serviceName as string) || "General enquiry",
+        service: (lead.service as { name?: string } | null)?.name || "General enquiry",
         source: (lead.source as string) || "Website",
         status: lead.status === "new" ? "New" : "Contacted",
         received: lead.createdAt ? new Date(lead.createdAt as string).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }) : "Recently",
       })),
-      activity: activity.length > 0 ? activity.map((event) => ({
+      activity: activity.length > 0 ? activity.map((event: any) => ({
         title: (event.description as string) || (event.type as string),
         detail: event.createdAt ? new Date(event.createdAt as string).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }) : "Recently",
         icon: "building",
-      })) : [...adminActivityFallback],
+      })) : [],
       finance: {
-        received: paidTotal || 450000,
-        outstanding: pendingTotal || 84500,
+        received: paidTotal || 0,
+        outstanding: pendingTotal || 0,
       },
       reports: {
-        quotedValue: quotedTotal || 14500000,
-        convertedLeads: leadList.filter((l) => l.status === "converted").length || 4,
-        projectsByStatus: [
-          { status: "planning", count: 2 },
-          { status: "in_progress", count: 6 },
-          { status: "completed", count: 4 },
-        ],
+        quotedValue: quotedTotal || 0,
+        convertedLeads: convertedLeadCount,
+        projectsByStatus: projectsByStatus.map((entry: any) => ({ status: entry.status, count: entry._count._all })),
       },
       milestones: [],
       calendar: [],
-      customers: customers.map((c) => ({ id: c.id, name: c.name as string, email: c.email as string })),
+      customers: customers.map((c: any) => ({ id: c.id, name: c.name as string, email: c.email as string })),
+      dataUnavailable: false,
     };
   } catch (error) {
-    console.warn("[data-access] Using admin dashboard fallback:", error);
+    console.warn("[data-access] Admin dashboard unavailable; returning empty state:", error);
     return {
       navItems: adminNavFallback,
-      stats: [...adminStatsFallback] as { label: string; value: string; detail: string; tone: string }[],
-      projects: [...adminProjectsFallback],
-      leads: [...adminLeadsFallback],
-      activity: [...adminActivityFallback],
-      finance: { received: 450000, outstanding: 84500 },
+      stats: [
+        { label: "Total projects", value: "0", detail: "No projects available", tone: "neutral" },
+        { label: "Active projects", value: "0", detail: "No active projects", tone: "positive" },
+        { label: "New leads", value: "0", detail: "No leads yet", tone: "attention" },
+        { label: "Pending quotations", value: "0", detail: "No quotations pending", tone: "attention" },
+      ],
+      projects: [],
+      leads: [],
+      activity: [],
+      finance: { received: 0, outstanding: 0 },
       reports: {
-        quotedValue: 14500000,
-        convertedLeads: 4,
-        projectsByStatus: [{ status: "planning", count: 2 }, { status: "in_progress", count: 6 }],
+        quotedValue: 0,
+        convertedLeads: 0,
+        projectsByStatus: [],
       },
       milestones: [],
       calendar: [],
       customers: [],
+      dataUnavailable: true,
     };
   }
 }
@@ -365,51 +335,109 @@ export async function getAdminDashboardDataServer() {
 
 export async function getClientProjectById(id: string) {
   const user = await getCurrentUser();
-  if (!user || id === "residence-01" || id === "demo") {
-    return {
-      ...clientProject,
-      currentPhase: "Electrical & plumbing",
-      currentPhaseProgress: 72,
-      outstandingPayment: 84500,
-      approvals: clientProject.approvals.map((a, i) => ({ ...a, id: `app-${i + 1}` })),
-    };
-  }
+  if (!user) return null;
 
   try {
-    const mappedApprovals = clientProject.approvals.map((a, i) => ({ ...a, id: `app-${i + 1}` }));
-    const project = await firestoreGet("projects", id);
-    if (!project) {
-      return {
-        ...clientProject,
+    const project = await prisma.project.findFirst({
+      where: {
         id,
-        currentPhase: "Electrical & plumbing",
-        currentPhaseProgress: 72,
-        outstandingPayment: 84500,
-        approvals: mappedApprovals,
-      };
-    }
+        deletedAt: null,
+        ...(user.role === "admin" ? {} : { customerId: user.id }),
+      },
+      include: {
+        services: { include: { service: { select: { name: true } } } },
+        phases: { orderBy: { sortOrder: "asc" } },
+        milestones: { orderBy: { dueDate: "asc" } },
+        timelineEvents: { orderBy: { occurredAt: "desc" }, take: 10 },
+        approvals: {
+          where: { status: "pending" },
+          include: { milestone: { select: { dueDate: true } } },
+          orderBy: { createdAt: "desc" },
+        },
+        documents: {
+          where: { deletedAt: null },
+          include: { versions: { orderBy: { version: "desc" }, take: 1 } },
+          orderBy: { updatedAt: "desc" },
+        },
+        designs: {
+          where: { deletedAt: null },
+          include: { approvals: { where: { status: "pending" }, select: { id: true } } },
+          orderBy: { updatedAt: "desc" },
+        },
+        projectMaterials: { include: { material: { select: { name: true, supplier: true } } } },
+        payments: { select: { amount: true, status: true } },
+      },
+    });
+    if (!project) return null;
+
+    const activePhase = project.phases.find((phase: any) => phase.status === "active");
+    const pendingApproval = project.approvals[0];
+    const outstandingPayment = project.payments
+      .filter((payment: any) => payment.status === "pending" || payment.status === "partially_paid" || payment.status === "overdue")
+      .reduce((total: number, payment: any) => total + Number(payment.amount), 0);
+    const dateLabel = (value: Date | null) => value
+      ? value.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+      : "Not scheduled";
 
     return {
-      ...clientProject,
       id: project.id,
-      name: (project.name as string) || clientProject.name,
-      location: (project.location as string) || clientProject.location,
-      status: (project.status as string) || clientProject.status,
-      overallProgress: Number(project.progress || clientProject.overallProgress),
-      currentPhase: "Electrical & plumbing",
-      currentPhaseProgress: 72,
-      outstandingPayment: 84500,
-      approvals: mappedApprovals,
+      name: project.name,
+      type: project.services.map(({ service }: any) => service.name).join(", ") || "Project",
+      location: project.location || "Not specified",
+      status: project.status,
+      statusDetail: `Updated ${dateLabel(project.updatedAt)}`,
+      overallProgress: Math.round(Number(project.progress)),
+      startDate: dateLabel(project.startDate),
+      targetDate: dateLabel(project.targetCompletionDate),
+      currentPhase: activePhase?.name || "No active phase",
+      currentPhaseProgress: activePhase ? Math.round(Number(activePhase.progress)) : 0,
+      nextAction: pendingApproval
+        ? {
+            title: `Review ${pendingApproval.targetType.toLowerCase()}`,
+            description: pendingApproval.comments || "An item is waiting for your review.",
+            due: pendingApproval.milestone?.dueDate ? `Due ${dateLabel(pendingApproval.milestone.dueDate)}` : "",
+          }
+        : { title: "No action pending", description: "There are no items requiring your review.", due: "" },
+      nextMilestone: project.milestones[0]
+        ? { name: project.milestones[0].name, progress: 0, date: dateLabel(project.milestones[0].dueDate) }
+        : { name: "No milestone scheduled", progress: 0, date: "Not scheduled" },
+      phases: project.phases.map((phase: any) => ({
+        name: phase.name,
+        state: phase.status === "completed" ? "complete" as const : phase.status === "active" ? "current" as const : "upcoming" as const,
+        progress: Math.round(Number(phase.progress)),
+      })),
+      timeline: project.timelineEvents.map((event: any) => ({
+        date: dateLabel(event.occurredAt),
+        title: event.title,
+        detail: event.description || "",
+        state: "complete",
+      })),
+      designs: project.designs.map((design: any) => ({
+        name: design.name,
+        type: design.type.replaceAll("_", " "),
+        status: design.approvals.length ? "Awaiting approval" : "Available",
+      })),
+      materials: project.projectMaterials.map(({ material }: any) => ({
+        name: material.name,
+        supplier: material.supplier || "Not specified",
+        status: "Added to project",
+      })),
+      approvals: project.approvals.map((approval: any) => ({
+        id: approval.id,
+        title: `${approval.targetType[0]?.toUpperCase()}${approval.targetType.slice(1)} review`,
+        detail: approval.comments || "Please review this item.",
+        due: approval.milestone?.dueDate ? `Due ${dateLabel(approval.milestone.dueDate)}` : "No due date",
+      })),
+      documents: project.documents.map((document: any) => ({
+        name: document.name,
+        type: document.type.replaceAll("_", " "),
+        date: dateLabel(document.updatedAt),
+      })),
+      outstandingPayment,
     };
-  } catch {
-    return {
-      ...clientProject,
-      id,
-      currentPhase: "Electrical & plumbing",
-      currentPhaseProgress: 72,
-      outstandingPayment: 84500,
-      approvals: clientProject.approvals.map((a, i) => ({ ...a, id: `app-${i + 1}` })),
-    };
+  } catch (error) {
+    console.error("[data-access] Failed to load client project:", error);
+    throw error;
   }
 }
 
@@ -483,10 +511,6 @@ export function getClientDashboardProjects() {
 
 export function getClientDashboardActivity() {
   return clientActivityFallback;
-}
-
-export function getClientProject() {
-  return clientProject;
 }
 
 export function getAdminNavItems() {

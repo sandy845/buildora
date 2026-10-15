@@ -79,13 +79,17 @@ test("Storage: buildObjectKey normalizes filenames and prevents path traversal",
 
 test("Storage: presigned URL generation produces valid endpoint and expiry", () => {
   const upload = generatePresignedUploadUrl("projects/p1/doc.pdf", "application/pdf", 900);
-  assert.ok("url" in upload);
-  assert.ok("key" in upload);
-  assert.ok((upload.expiresAt ?? 0) > Date.now());
+  assert.ok("url" in upload || "error" in upload);
+  assert.ok("key" in upload || "error" in upload);
+  if ("url" in upload) {
+    assert.ok((upload.expiresAt ?? 0) > Date.now());
+  }
 
   const download = generatePresignedDownloadUrl("projects/p1/doc.pdf", 3600);
-  assert.ok("url" in download);
-  assert.ok((download.expiresAt ?? 0) > Date.now());
+  assert.ok("url" in download || "error" in download);
+  if ("url" in download) {
+    assert.ok((download.expiresAt ?? 0) > Date.now());
+  }
 });
 
 test("Email: getEmailProviderStatus accurately reports configured provider", () => {

@@ -1,0 +1,14 @@
+stateDiagram-v2
+    [*] --> New
+    New --> Contacted: first contact
+    Contacted --> Qualified: requirement confirmed
+    Qualified --> Converted: project created
+    New --> Closed: not proceeding
+    Contacted --> Closed: not proceeding
+    Qualified --> Closed: not proceeding
+    Converted --> [*]
+    Closed --> [*]
+    note right of Qualified
+        Status values exist in schema.
+        Transition rules require business validation.
+    end note

@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="560" viewBox="0 0 1000 560">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#36536b"/>
+    </marker>
+    <style>
+      .title{font:700 25px Arial;fill:#183247}.label{font:600 18px Arial;fill:#183247}
+      .small{font:15px Arial;fill:#30495c}.box{fill:#eef4f7;stroke:#36536b;stroke-width:2}
+      .system{fill:#edf7f4;stroke:#2c7165;stroke-width:3}.optional{fill:#fff8e9;stroke:#b07b20;stroke-width:2}
+      .link{stroke:#36536b;stroke-width:2.5;fill:none;marker-end:url(#arrow)}
+      .dashed{stroke-dasharray:8 7}
+    </style>
+  </defs>
+  <rect width="1000" height="560" fill="white"/>
+  <text x="500" y="42" text-anchor="middle" class="title">Buildora system context</text>
+  <rect x="34" y="118" width="205" height="68" rx="12" class="box"/>
+  <text x="136" y="148" text-anchor="middle" class="label">Visitor</text>
+  <text x="136" y="171" text-anchor="middle" class="small">Browse / enquire</text>
+  <rect x="34" y="226" width="205" height="68" rx="12" class="box"/>
+  <text x="136" y="256" text-anchor="middle" class="label">Customer</text>
+  <text x="136" y="279" text-anchor="middle" class="small">Own project records</text>
+  <rect x="34" y="334" width="205" height="68" rx="12" class="box"/>
+  <text x="136" y="364" text-anchor="middle" class="label">Administrator</text>
+  <text x="136" y="387" text-anchor="middle" class="small">Manage selected records</text>
+  <rect x="320" y="94" width="340" height="350" rx="18" class="system"/>
+  <text x="490" y="128" text-anchor="middle" class="label">BUILDORA WEB APPLICATION</text>
+  <rect x="354" y="158" width="272" height="60" rx="10" class="box"/>
+  <text x="490" y="194" text-anchor="middle" class="small">Public pages and enquiry</text>
+  <rect x="354" y="238" width="272" height="60" rx="10" class="box"/>
+  <text x="490" y="274" text-anchor="middle" class="small">Customer workspace</text>
+  <rect x="354" y="318" width="272" height="60" rx="10" class="box"/>
+  <text x="490" y="354" text-anchor="middle" class="small">Admin workflows / access checks</text>
+  <path d="M239 152 L346 184" class="link"/>
+  <path d="M239 260 L346 268" class="link"/>
+  <path d="M239 368 L346 348" class="link"/>
+  <rect x="758" y="110" width="204" height="76" rx="12" class="box"/>
+  <text x="860" y="143" text-anchor="middle" class="label">PostgreSQL</text>
+  <text x="860" y="167" text-anchor="middle" class="small">Authoritative records</text>
+  <path d="M660 216 C710 216 704 150 750 150" class="link"/>
+  <rect x="758" y="235" width="204" height="58" rx="12" class="optional"/>
+  <text x="860" y="270" text-anchor="middle" class="small">Email provider (optional)</text>
+  <rect x="758" y="316" width="204" height="58" rx="12" class="optional"/>
+  <text x="860" y="351" text-anchor="middle" class="small">Firebase Auth (optional)</text>
+  <rect x="758" y="397" width="204" height="58" rx="12" class="optional"/>
+  <text x="860" y="432" text-anchor="middle" class="small">S3 storage (optional)</text>
+  <path d="M660 332 C710 332 704 264 750 264" class="link dashed"/>
+  <path d="M660 350 C710 350 704 345 750 345" class="link dashed"/>
+  <path d="M660 370 C710 370 704 426 750 426" class="link dashed"/>
+  <text x="500" y="505" text-anchor="middle" class="small">Optional services require explicit configuration; their deployment is not verified.</text>
+</svg>

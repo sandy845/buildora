@@ -1,6 +1,6 @@
 "use server";
 
-import { firestoreFindOne } from "../firebase/firestore";
+import { prisma } from "../db/prisma";
 import { createLeadService } from "../services/core.ts";
 import { sendLeadConfirmationEmail, sendNewLeadAlertEmail } from "../email.ts";
 import { leadFormLimiter, getClientIp } from "../rate-limit.ts";
@@ -77,9 +77,7 @@ export async function submitContactLeadAction(
     let serviceConnect: { connect: { id: string } } | undefined;
     if (serviceName) {
       const slug = serviceName.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-      const matchedService = await firestoreFindOne<{ id: string }>("services", {
-        where: [{ field: "slug", operator: "==", value: slug }],
-      });
+      const matchedService = await prisma.service.findFirst({ where: { slug, deletedAt: null }, select: { id: true } });
       if (matchedService) {
         serviceConnect = { connect: { id: matchedService.id } };
       }
@@ -110,12 +108,8 @@ export async function submitContactLeadAction(
           location,
           status: "planning",
           progress: 0,
-          leadId: lead.id,
+          originatingLeadId: lead.id,
           description: message,
-          ...(budget ? { budgetRange: budget } : {}),
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          deletedAt: null,
         });
       }
     } catch (projectErr) {

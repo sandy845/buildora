@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth/server";
 import { prisma } from "@/lib/db/prisma";
 import { DocumentType, DesignAssetType } from "@/lib/types/models";
 import { validateUpload } from "@/lib/storage";
+import { canAccessProject } from "@/lib/services/shared";
 
 export async function POST(req: NextRequest) {
   try {
@@ -43,7 +44,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Project not found." }, { status: 404 });
     }
 
-    if (user.role !== "admin" && project.customerId !== user.id) {
+    if (!canAccessProject(user, project.customerId)) {
       return NextResponse.json({ error: "Forbidden. You do not have access to this project." }, { status: 403 });
     }
 

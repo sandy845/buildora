@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { submitContactLeadAction } from "../src/lib/actions/leads.ts";
-import { getLead } from "../src/lib/db/data-access.ts";
-import { firestoreCreate } from "../src/lib/firebase/firestore.ts";
+import { prisma } from "../src/lib/db/prisma.ts";
 
 test("submitContactLeadAction rejects empty payload with field errors", async () => {
   const result = await submitContactLeadAction({});
@@ -27,26 +26,31 @@ test("submitContactLeadAction rejects invalid email address", async () => {
   assert.equal(result.fieldErrors?.email, "Please enter a valid email address.");
 });
 
-test("submitContactLeadAction saves a valid enquiry with optional fields omitted", async () => {
-  const service = await firestoreCreate("services", {
-    name: "Interior design",
-    slug: "interior-design",
+test("submitContactLeadAction persists a valid enquiry in PostgreSQL", {
+  skip: process.env.RUN_DATABASE_TESTS !== "1",
+}, async () => {
+  const slug = `test-service-${Date.now()}`;
+  const email = `lead-${Date.now()}@example.com`;
+  const service = await prisma.service.create({
+    data: { name: "Interior design", slug, description: "Test fixture" },
   });
-  const result = await submitContactLeadAction({
-    fullName: "Buildora Test Customer",
-    email: `lead-${Date.now()}@example.com`,
-    phone: "+91 98765 43210",
-    location: "Mumbai",
-    service: "Interior design",
-    message: "Please help plan an interior design project.",
-  });
-
-  assert.equal(result.success, true);
-  assert.ok(result.leadId);
-
-  const lead = await getLead({ id: result.leadId });
-  assert.equal(lead?.projectBrief, "[Service: Interior design]\nPlease help plan an interior design project.");
-  assert.equal(lead?.budgetRange, undefined);
-  assert.equal(lead?.serviceId, service.id);
-  assert.equal(Object.hasOwn(lead ?? {}, "service"), false);
+  try {
+    const result = await submitContactLeadAction({
+      fullName: "Buildora Test Customer",
+      email,
+      phone: "+91 98765 43210",
+      location: "Mumbai",
+      service: "Interior design",
+      message: "Please help plan an interior design project.",
+    });
+    assert.equal(result.success, true);
+    assert.ok(result.leadId);
+    const lead = await prisma.lead.findUnique({ where: { id: result.leadId } });
+    assert.equal(lead?.projectBrief, "[Service: Interior design]\nPlease help plan an interior design project.");
+    assert.equal(lead?.budgetRange, null);
+    assert.equal(lead?.serviceId, service.id);
+  } finally {
+    await prisma.lead.deleteMany({ where: { email } });
+    await prisma.service.delete({ where: { id: service.id } });
+  }
 });

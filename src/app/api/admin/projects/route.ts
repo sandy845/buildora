@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/server";
-import { prisma } from "@/lib/db/prisma";
+import { prisma, type PrismaTransactionClient } from "@/lib/db/prisma";
 import { recordAudit } from "@/lib/audit";
 
 async function requireAdmin() {
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     if (leadId && !lead) return NextResponse.json({ error: "Lead not found." }, { status: 404 });
     if (lead && lead.customerId && lead.customerId !== customerId) return NextResponse.json({ error: "The selected lead belongs to a different customer." }, { status: 400 });
     const slug = `${name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}-${Date.now()}`;
-    const project = await prisma.$transaction(async (tx: any) => {
+    const project = await prisma.$transaction(async (tx: PrismaTransactionClient) => {
       const createdProject = await tx.project.create({
         data: { name, slug, customerId, originatingLeadId: leadId, location, description: typeof body.description === "string" ? body.description.trim() : undefined },
         select: { id: true, name: true, slug: true, status: true },

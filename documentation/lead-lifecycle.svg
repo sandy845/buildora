@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="360" viewBox="0 0 1000 360">
+  <defs>
+    <marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="#36536b"/></marker>
+    <style>
+      .title{font:700 24px Arial;fill:#183247}.state{fill:#eef4f7;stroke:#36536b;stroke-width:2}
+      .closed{fill:#fff8e9;stroke:#b07b20;stroke-width:2}.txt{font:600 16px Arial;fill:#183247}
+      .flow{stroke:#36536b;stroke-width:2;fill:none;marker-end:url(#a)}.note{font:14px Arial;fill:#526878}
+    </style>
+  </defs>
+  <rect width="1000" height="360" fill="white"/>
+  <text x="500" y="40" text-anchor="middle" class="title">Lead lifecycle state model</text>
+  <circle cx="75" cy="190" r="12" fill="#2c7165"/>
+  <rect x="130" y="157" width="145" height="66" rx="24" class="state"/><text x="202" y="197" text-anchor="middle" class="txt">New</text>
+  <rect x="350" y="157" width="145" height="66" rx="24" class="state"/><text x="422" y="197" text-anchor="middle" class="txt">Contacted</text>
+  <rect x="570" y="157" width="145" height="66" rx="24" class="state"/><text x="642" y="197" text-anchor="middle" class="txt">Qualified</text>
+  <rect x="790" y="95" width="155" height="66" rx="24" class="closed"/><text x="867" y="135" text-anchor="middle" class="txt">Converted</text>
+  <rect x="790" y="235" width="155" height="66" rx="24" class="closed"/><text x="867" y="275" text-anchor="middle" class="txt">Closed</text>
+  <path d="M87 190H122M275 190H342M495 190H562M715 177L782 140M715 203L782 258" class="flow"/>
+  <text x="310" y="178" text-anchor="middle" class="note">first contact</text>
+  <text x="530" y="178" text-anchor="middle" class="note">qualification</text>
+  <text x="770" y="104" text-anchor="middle" class="note">project created</text>
+  <text x="770" y="244" text-anchor="middle" class="note">not proceeding</text>
+  <text x="500" y="330" text-anchor="middle" class="note">Status values are defined in the schema. Transition policy and every permitted transition require business validation.</text>
+</svg>

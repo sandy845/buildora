@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/server";
+import { prisma } from "@/lib/db/prisma";
 import { generatePresignedDownloadUrl } from "@/lib/storage";
+import { canAccessProject } from "@/lib/services/shared";
 
 export async function GET(req: NextRequest) {
   try {
@@ -14,6 +16,23 @@ export async function GET(req: NextRequest) {
 
     if (!key) {
       return NextResponse.json({ error: "Missing key parameter." }, { status: 400 });
+    }
+
+    const [documentVersion, designVersion] = await Promise.all([
+      prisma.documentVersion.findFirst({
+        where: { fileUrl: key, document: { deletedAt: null, project: { deletedAt: null } } },
+        select: { document: { select: { project: { select: { customerId: true } } } } },
+      }),
+      prisma.designVersion.findFirst({
+        where: { fileUrl: key, designAsset: { deletedAt: null, project: { deletedAt: null } } },
+        select: { designAsset: { select: { project: { select: { customerId: true } } } } },
+      }),
+    ]);
+    const customerId = documentVersion?.document.project.customerId
+      ?? designVersion?.designAsset.project.customerId;
+    if (!customerId) return NextResponse.json({ error: "File not found." }, { status: 404 });
+    if (!canAccessProject(user, customerId)) {
+      return NextResponse.json({ error: "Forbidden." }, { status: 403 });
     }
 
     const result = generatePresignedDownloadUrl(key, 3600);

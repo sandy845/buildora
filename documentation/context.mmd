@@ -1,0 +1,26 @@
+flowchart LR
+    Visitor[Prospective customer]
+    Customer[Registered customer]
+    Admin[Administrator]
+    subgraph Buildora[Buildora web application]
+        Public[Public pages and enquiry]
+        Portal[Customer workspace]
+        Console[Admin workflows]
+        Auth[Session and access checks]
+        Services[Application services]
+    end
+    DB[(PostgreSQL via Prisma)]
+    Email[Optional email provider]
+    Identity[Optional Firebase Auth]
+    Storage[Optional S3-compatible storage]
+    Visitor --> Public
+    Customer --> Portal
+    Admin --> Console
+    Public --> Services
+    Portal --> Auth
+    Console --> Auth
+    Auth --> Services
+    Services --> DB
+    Services -. configured .-> Email
+    Identity -. optional sign-in .-> Auth
+    Portal -. configured files .-> Storage

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="300" viewBox="0 0 1000 300">
+  <defs>
+    <marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="#36536b"/></marker>
+    <style>
+      .title{font:700 22px Arial;fill:#183247}.node{fill:#eef4f7;stroke:#36536b;stroke-width:2}
+      .text{font:600 13px Arial;fill:#183247}.link{stroke:#36536b;stroke-width:2;fill:none;marker-end:url(#a)}
+      .note{font:13px Arial;fill:#526878}
+    </style>
+  </defs>
+  <rect width="1000" height="300" fill="white"/>
+  <text x="500" y="30" text-anchor="middle" class="title">PERT critical-path proposal (expected durations)</text>
+  <g class="node">
+    <rect x="20" y="85" width="135" height="68" rx="10"/><rect x="185" y="85" width="135" height="68" rx="10"/>
+    <rect x="350" y="85" width="135" height="68" rx="10"/><rect x="515" y="85" width="135" height="68" rx="10"/>
+    <rect x="680" y="85" width="135" height="68" rx="10"/><rect x="845" y="85" width="135" height="68" rx="10"/>
+  </g>
+  <g class="text" text-anchor="middle">
+    <text x="87" y="112">Scope /</text><text x="87" y="132">requirements · 2w</text>
+    <text x="252" y="112">Design /</text><text x="252" y="132">migration · 3w</text>
+    <text x="417" y="112">Identity /</text><text x="417" y="132">access · 4w</text>
+    <text x="582" y="112">Workflows ·</text><text x="582" y="132">5w</text>
+    <text x="747" y="112">Verification ·</text><text x="747" y="132">3w</text>
+    <text x="912" y="112">Release ·</text><text x="912" y="132">1w</text>
+  </g>
+  <path d="M155 119H177M320 119H342M485 119H507M650 119H672M815 119H837" class="link"/>
+  <text x="500" y="205" text-anchor="middle" class="note">Assumed serial critical path: 18 expected weeks. Three-point durations are planning assumptions, not logged effort.</text>
+  <text x="500" y="230" text-anchor="middle" class="note">PERT estimate per activity: (optimistic + 4 × most likely + pessimistic) ÷ 6.</text>
+  <text x="500" y="255" text-anchor="middle" class="note">Parallel work, team size, academic deadlines and business review may change the schedule materially.</text>
+</svg>

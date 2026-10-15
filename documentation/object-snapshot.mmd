@@ -1,0 +1,20 @@
+classDiagram
+    class User_u1 {
+        role customer
+        email user@example.invalid
+    }
+    class Lead_l1 {
+        status qualified
+        customerId User_u1.id
+    }
+    class Project_p1 {
+        status planning
+        originatingLeadId Lead_l1.id
+    }
+    class Quotation_q1 {
+        status draft
+        projectId Project_p1.id
+    }
+    User_u1 --> Lead_l1 : submits
+    Lead_l1 --> Project_p1 : originates
+    Project_p1 --> Quotation_q1 : has

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/server";
 import { prisma } from "@/lib/db/prisma";
+import { canAccessProject } from "@/lib/services/shared";
 import {
   buildObjectKey,
   generatePresignedUploadUrl,
@@ -48,7 +49,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Project not found." }, { status: 404 });
     }
 
-    if (user.role !== "admin" && project.customerId !== user.id) {
+    if (!canAccessProject(user, project.customerId)) {
       return NextResponse.json({ error: "Forbidden. You do not have access to this project." }, { status: 403 });
     }
 

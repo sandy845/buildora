@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="440" viewBox="0 0 1000 440">
+  <defs>
+    <marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="#36536b"/></marker>
+    <style>
+      .title{font:700 24px Arial;fill:#183247}.label{font:600 17px Arial;fill:#183247}.small{font:14px Arial;fill:#30495c}
+      .entity{fill:#eef4f7;stroke:#36536b;stroke-width:2}.process{fill:#edf7f4;stroke:#2c7165;stroke-width:3}
+      .external{fill:#fff8e9;stroke:#b07b20;stroke-width:2}.flow{stroke:#36536b;stroke-width:2.5;fill:none;marker-end:url(#a)}
+      .dash{stroke-dasharray:8 6}
+    </style>
+  </defs>
+  <rect width="1000" height="440" fill="white"/>
+  <text x="500" y="40" text-anchor="middle" class="title">Level 0 data-flow context diagram</text>
+  <rect x="42" y="105" width="185" height="65" rx="8" class="entity"/><text x="134" y="144" text-anchor="middle" class="label">Visitor</text>
+  <rect x="42" y="278" width="185" height="65" rx="8" class="entity"/><text x="134" y="317" text-anchor="middle" class="label">Customer / Admin</text>
+  <ellipse cx="500" cy="220" rx="205" ry="115" class="process"/>
+  <text x="500" y="211" text-anchor="middle" class="label">0. Buildora</text><text x="500" y="240" text-anchor="middle" class="small">Portal and project workflows</text>
+  <path d="M227 130L350 174" class="flow"/><text x="275" y="126" class="small">Enquiry / browse</text>
+  <path d="M350 260L227 310" class="flow"/><text x="248" y="300" class="small">Confirmation</text>
+  <path d="M227 294L350 251" class="flow"/><text x="247" y="265" class="small">Credentials / actions</text>
+  <path d="M350 221L227 144" class="flow"/><text x="248" y="179" class="small">Public response</text>
+  <rect x="772" y="92" width="187" height="66" rx="8" class="entity"/><text x="865" y="132" text-anchor="middle" class="label">PostgreSQL</text>
+  <path d="M680 185L765 132" class="flow"/><text x="700" y="144" class="small">Read / write records</text>
+  <path d="M765 151L676 218" class="flow"/><text x="700" y="203" class="small">Project / lead data</text>
+  <rect x="772" y="260" width="187" height="60" rx="8" class="external"/><text x="865" y="296" text-anchor="middle" class="small">Optional email / storage</text>
+  <path d="M638 276L765 288" class="flow dash"/><text x="665" y="302" class="small">Provider calls when configured</text>
+  <text x="500" y="390" text-anchor="middle" class="small">Database is authoritative; external providers are optional dependencies, not verified deployments.</text>
+</svg>

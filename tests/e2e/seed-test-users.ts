@@ -1,6 +1,5 @@
 import { randomBytes, scrypt as scryptCallback } from "node:crypto";
 import { promisify } from "node:util";
-import { prisma } from "../../src/lib/db/prisma";
 
 const scrypt = promisify(scryptCallback);
 
@@ -11,8 +10,15 @@ async function hashPassword(password: string): Promise<string> {
 }
 
 export async function seedTestUsers() {
+  const databaseUrl = process.env.E2E_DATABASE_URL;
+  if (!databaseUrl) {
+    throw new Error("E2E_DATABASE_URL must point to a dedicated disposable PostgreSQL database.");
+  }
+  process.env.DATABASE_URL = databaseUrl;
+  const { prisma } = await import("../../src/lib/db/prisma");
   const customerEmail = "test_customer@buildora.in";
   const adminEmail = "test_admin@buildora.in";
+  const otherCustomerEmail = "other_customer@buildora.in";
   const password = "Password123!";
   const passwordHash = await hashPassword(password);
 
@@ -48,6 +54,21 @@ export async function seedTestUsers() {
     },
   });
 
+  const otherCustomer = await prisma.user.upsert({
+    where: { normalizedEmail: otherCustomerEmail },
+    update: { passwordHash, accountStatus: "active", role: "customer", emailVerifiedAt: new Date() },
+    create: {
+      name: "Other Test Customer",
+      email: otherCustomerEmail,
+      normalizedEmail: otherCustomerEmail,
+      phone: "+91 98765 43211",
+      passwordHash,
+      role: "customer",
+      accountStatus: "active",
+      emailVerifiedAt: new Date(),
+    },
+  });
+
   // 3. Upsert a project for the test customer
   const projectId = "11111111-1111-1111-1111-111111111111";
   await prisma.project.upsert({
@@ -73,6 +94,32 @@ export async function seedTestUsers() {
         ],
       },
     },
+  });
+
+  const otherProjectId = "33333333-3333-3333-3333-333333333331";
+  await prisma.project.upsert({
+    where: { id: otherProjectId },
+    update: { customerId: otherCustomer.id },
+    create: {
+      id: otherProjectId,
+      customerId: otherCustomer.id,
+      name: "Private test project",
+      slug: "private-test-project",
+      status: "planning",
+      progress: 0,
+    },
+  });
+  const documentId = "33333333-3333-3333-3333-333333333332";
+  const privateObjectKey = `projects/${otherProjectId}/documents/private-test.pdf`;
+  await prisma.document.upsert({
+    where: { id: documentId },
+    update: { projectId: otherProjectId, name: "Private test file", type: "specification", deletedAt: null },
+    create: { id: documentId, projectId: otherProjectId, name: "Private test file", type: "specification" },
+  });
+  await prisma.documentVersion.upsert({
+    where: { documentId_version: { documentId, version: 1 } },
+    update: { fileUrl: privateObjectKey },
+    create: { id: "33333333-3333-3333-3333-333333333333", documentId, version: 1, fileUrl: privateObjectKey },
   });
 
   console.log("E2E Test Users & Project seeded successfully.");

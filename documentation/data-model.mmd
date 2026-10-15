@@ -1,0 +1,45 @@
+erDiagram
+    USER ||--o{ PROJECT : owns
+    USER ||--o{ LEAD : submits_or_assigned
+    LEAD o|--o{ PROJECT : originates
+    SERVICE o|--o{ LEAD : classifies
+    PROJECT ||--o{ QUOTATION : has
+    QUOTATION ||--o{ QUOTATION_LINE_ITEM : contains
+    PROJECT ||--o{ PAYMENT : records
+    PROJECT ||--o{ DOCUMENT : stores_metadata
+    PROJECT ||--o{ DESIGN_ASSET : contains
+    PROJECT ||--o{ APPROVAL : requests
+    PROJECT ||--o{ CONVERSATION : groups
+    CONVERSATION ||--o{ MESSAGE : contains
+    PROJECT ||--o{ PROJECT_MILESTONE : tracks
+    USER {
+        uuid id PK
+        string normalizedEmail UK
+        enum role
+        enum accountStatus
+    }
+    LEAD {
+        uuid id PK
+        string email
+        enum status
+        string projectBrief
+    }
+    PROJECT {
+        uuid id PK
+        uuid customerId FK
+        string name
+        enum status
+        decimal progress
+    }
+    QUOTATION {
+        uuid id PK
+        uuid projectId FK
+        enum status
+        decimal total
+    }
+    PAYMENT {
+        uuid id PK
+        uuid projectId FK
+        decimal amount
+        enum status
+    }

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAdminDb } from "@/lib/firebase/admin";
+import { prisma } from "@/lib/db/prisma";
 import { isFirebaseClientConfigured, isFirebaseAdminConfigured } from "@/lib/firebase/config";
 import { getStorageProviderName, isStorageConfigured } from "@/lib/storage";
 import { getEmailProviderStatus } from "@/lib/email";
@@ -13,27 +13,16 @@ export async function GET() {
   let dbLatencyMs = -1;
   let dbError: string | undefined;
 
-  // 1. Check Firebase Firestore database connectivity
+  // 1. Check PostgreSQL database connectivity
   try {
     const dbStart = Date.now();
-    const db = getAdminDb();
-    if (db) {
-      // Light check to test connectivity
-      await db.collection("users").limit(1).get();
-      dbLatencyMs = Date.now() - dbStart;
-      dbStatus = "connected";
-    } else {
-      if (process.env.E2E_TEST === "1") {
-        dbLatencyMs = 0;
-        dbStatus = "connected";
-      } else {
-        dbError = "Firebase Admin credentials are not configured.";
-      }
-    }
+    await prisma.$queryRaw`SELECT 1`;
+    dbLatencyMs = Date.now() - dbStart;
+    dbStatus = "connected";
   } catch (err: unknown) {
     dbStatus = "disconnected";
     dbError = err instanceof Error ? err.message : String(err);
-    console.error("[health] Firebase Firestore ping notice:", dbError);
+    console.error("[health] PostgreSQL connectivity check failed:", dbError);
   }
 
   // 2. Storage status
@@ -70,11 +59,12 @@ export async function GET() {
       latencyMs: totalDurationMs,
       services: {
         database: {
-          type: "firebase_firestore",
+          type: "postgresql",
           status: dbStatus,
           latencyMs: dbLatencyMs,
-          adminConfigured: isFirebaseAdminConfigured(),
-          clientConfigured: isFirebaseClientConfigured(),
+          configured: Boolean(process.env.DATABASE_URL),
+          firebaseAdminConfigured: isFirebaseAdminConfigured(),
+          firebaseClientConfigured: isFirebaseClientConfigured(),
           error: dbError,
         },
         storage: {

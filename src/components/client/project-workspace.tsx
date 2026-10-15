@@ -106,7 +106,11 @@ export function ProjectWorkspaceClient({ project }: { project: ProjectData }) {
             </div>
             <div className="flex items-center gap-3">
               <ProjectStatus>{project.status}</ProjectStatus>
-              <button type="button" className="rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-white">
+              <button
+                type="button"
+                onClick={() => selectTab("Messages")}
+                className="rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#2a2a2a]"
+              >
                 Contact team
               </button>
             </div>
@@ -115,13 +119,15 @@ export function ProjectWorkspaceClient({ project }: { project: ProjectData }) {
 
         {/* Desktop tab nav */}
         <div className="mx-auto hidden max-w-7xl overflow-x-auto px-4 sm:px-6 lg:block lg:px-10">
-          <nav aria-label="Project sections" className="flex min-w-max gap-7">
+          <nav aria-label="Project sections" data-testid="project-tab-nav" className="flex min-w-max gap-7">
             {tabs.map((tab) => (
               <button
                 key={tab}
                 type="button"
+                role="tab"
+                aria-selected={activeTab === tab}
                 onClick={() => selectTab(tab)}
-                className={`border-b-2 px-0 py-4 text-sm font-semibold ${activeTab === tab ? "border-primary text-primary" : "border-transparent text-muted hover:text-primary"}`}
+                className={`border-b-2 px-0 py-4 text-sm font-semibold transition-colors ${activeTab === tab ? "border-primary text-primary" : "border-transparent text-muted hover:text-primary"}`}
               >
                 {tab}
               </button>
@@ -146,8 +152,10 @@ export function ProjectWorkspaceClient({ project }: { project: ProjectData }) {
                 <button
                   key={tab}
                   type="button"
+                  role="tab"
+                  aria-selected={activeTab === tab}
                   onClick={() => selectTab(tab)}
-                  className={`rounded-lg px-3 py-2 text-left text-sm font-semibold ${activeTab === tab ? "bg-primary text-white" : "text-muted"}`}
+                  className={`rounded-lg px-3 py-2 text-left text-sm font-semibold transition-colors ${activeTab === tab ? "bg-primary text-white" : "text-muted hover:bg-background"}`}
                 >
                   {tab}
                 </button>

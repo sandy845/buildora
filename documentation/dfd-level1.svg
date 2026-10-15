@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="490" viewBox="0 0 1000 490">
+  <defs>
+    <marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="#36536b"/></marker>
+    <style>
+      .title{font:700 24px Arial;fill:#183247}.label{font:600 15px Arial;fill:#183247}.small{font:13px Arial;fill:#526878}
+      .external{fill:#fff8e9;stroke:#b07b20;stroke-width:2}.process{fill:#edf7f4;stroke:#2c7165;stroke-width:2}
+      .store{fill:#eef4f7;stroke:#36536b;stroke-width:2}.flow{stroke:#36536b;stroke-width:2;fill:none;marker-end:url(#a)}
+    </style>
+  </defs>
+  <rect width="1000" height="490" fill="white"/>
+  <text x="500" y="38" text-anchor="middle" class="title">Level 1 data-flow diagram</text>
+  <rect x="30" y="112" width="155" height="60" rx="8" class="external"/><text x="107" y="148" text-anchor="middle" class="label">Visitor</text>
+  <rect x="30" y="316" width="155" height="60" rx="8" class="external"/><text x="107" y="352" text-anchor="middle" class="label">Customer / Admin</text>
+  <ellipse cx="330" cy="120" rx="125" ry="44" class="process"/><text x="330" y="125" text-anchor="middle" class="label">1. Capture enquiry</text>
+  <ellipse cx="330" cy="260" rx="125" ry="44" class="process"/><text x="330" y="265" text-anchor="middle" class="label">2. Authenticate / authorise</text>
+  <ellipse cx="610" cy="170" rx="130" ry="44" class="process"/><text x="610" y="175" text-anchor="middle" class="label">3. Manage project records</text>
+  <ellipse cx="610" cy="320" rx="130" ry="44" class="process"/><text x="610" y="325" text-anchor="middle" class="label">4. Manage selected admin data</text>
+  <rect x="800" y="110" width="165" height="70" rx="8" class="store"/><text x="882" y="141" text-anchor="middle" class="label">D1: PostgreSQL</text><text x="882" y="162" text-anchor="middle" class="small">users / business records</text>
+  <rect x="800" y="275" width="165" height="65" rx="8" class="store"/><text x="882" y="304" text-anchor="middle" class="label">D2: Object storage</text><text x="882" y="325" text-anchor="middle" class="small">optional provider</text>
+  <path d="M185 130L197 124" class="flow"/><path d="M455 135L472 157" class="flow"/>
+  <path d="M185 345L197 276" class="flow"/><path d="M455 265L472 211" class="flow"/>
+  <path d="M740 160L792 145" class="flow"/><path d="M792 165L740 188" class="flow"/>
+  <path d="M740 316L792 155" class="flow"/><path d="M790 309L740 320" class="flow"/>
+  <path d="M185 152L790 138" class="flow"/>
+  <text x="300" y="97" class="small">validated request</text><text x="525" y="239" class="small">role + ownership checks</text>
+  <text x="500" y="416" text-anchor="middle" class="small">D1 is authoritative. Optional email, identity, and storage adapters are omitted from this decomposition.</text>
+  <text x="500" y="441" text-anchor="middle" class="small">The diagram is a logical data-flow view, not a claim that all schema modules have complete screens.</text>
+</svg>

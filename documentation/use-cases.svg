@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="520" viewBox="0 0 1000 520">
+  <defs>
+    <style>
+      .title{font:700 24px Arial;fill:#183247}.label{font:15px Arial;fill:#30495c}
+      .actor{stroke:#36536b;stroke-width:3;fill:none}.case{fill:#eef4f7;stroke:#36536b;stroke-width:2}
+      .boundary{fill:#f6fafb;stroke:#2c7165;stroke-width:3}.link{stroke:#8193a0;stroke-width:2}
+      .small{font:13px Arial;fill:#526878}
+    </style>
+  </defs>
+  <rect width="1000" height="520" fill="white"/>
+  <text x="500" y="38" text-anchor="middle" class="title">Buildora use-case model</text>
+  <rect x="270" y="72" width="690" height="390" rx="16" class="boundary"/>
+  <text x="615" y="102" text-anchor="middle" class="label" font-weight="700">BUILDORA APPLICATION</text>
+  <g class="actor">
+    <circle cx="105" cy="155" r="17"/><path d="M105 172v54m-27-34h54m-27 34-23 33m23-33 23 33"/>
+    <circle cx="105" cy="323" r="17"/><path d="M105 340v54m-27-34h54m-27 34-23 33m23-33 23 33"/>
+    <circle cx="196" cy="240" r="17"/><path d="M196 257v54m-27-34h54m-27 34-23 33m23-33 23 33"/>
+  </g>
+  <text x="105" y="286" text-anchor="middle" class="label">Visitor</text>
+  <text x="105" y="454" text-anchor="middle" class="label">Customer</text>
+  <text x="196" y="365" text-anchor="middle" class="label">Administrator</text>
+  <g class="link">
+    <path d="M135 185L320 155"/><path d="M135 203L320 222"/><path d="M135 221L320 289"/>
+    <path d="M135 351L320 222"/><path d="M135 367L320 356"/><path d="M135 385L320 423"/>
+    <path d="M226 274L655 155"/><path d="M226 288L655 222"/><path d="M226 302L655 289"/>
+    <path d="M226 316L655 356"/><path d="M226 330L655 423"/>
+  </g>
+  <g class="case">
+    <ellipse cx="430" cy="155" rx="112" ry="28"/><ellipse cx="430" cy="222" rx="112" ry="28"/>
+    <ellipse cx="430" cy="289" rx="112" ry="28"/><ellipse cx="430" cy="356" rx="112" ry="28"/>
+    <ellipse cx="430" cy="423" rx="112" ry="28"/>
+    <ellipse cx="765" cy="155" rx="145" ry="28"/><ellipse cx="765" cy="222" rx="145" ry="28"/>
+    <ellipse cx="765" cy="289" rx="145" ry="28"/><ellipse cx="765" cy="356" rx="145" ry="28"/>
+    <ellipse cx="765" cy="423" rx="145" ry="28"/>
+  </g>
+  <g class="label" text-anchor="middle">
+    <text x="430" y="160">Browse services / portfolio</text><text x="430" y="227">Submit project enquiry</text>
+    <text x="430" y="294">View indicative estimate</text><text x="430" y="361">Register / sign in</text>
+    <text x="430" y="428">View own project records</text>
+    <text x="765" y="160">Review and update leads</text><text x="765" y="227">Create / update project</text>
+    <text x="765" y="294">Create quotation</text><text x="765" y="361">Record manual payment</text>
+    <text x="765" y="428">Manage selected records</text>
+  </g>
+  <text x="615" y="488" text-anchor="middle" class="small">Use cases describe evidenced scope; schema-only or future workflows are not implied as complete.</text>
+</svg>

@@ -1,6 +1,6 @@
 /**
  * Core Domain Model Types for Buildora
- * Compatible with Firebase Firestore documents and application services.
+ * Shared domain types used by application services.
  */
 
 export type UserRole = "customer" | "admin";

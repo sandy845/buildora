@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useState } from "react";
 import { validateLogin } from "@/lib/auth";
 import { loginUser } from "@/lib/auth/server";
 import { signInWithGoogle } from "@/lib/firebase/client";
@@ -21,11 +21,6 @@ function LoginForm() {
   const [submitState, setSubmitState] = useState<"idle" | "success" | "error">("idle");
   const [serverError, setServerError] = useState("");
 
-  useEffect(() => {
-    if (emailParam && !form.email) {
-      setForm((prev) => ({ ...prev, email: emailParam }));
-    }
-  }, [emailParam]);
 
   function updateField(field: keyof typeof form, value: string) {
     setForm((current) => ({ ...current, [field]: value }));

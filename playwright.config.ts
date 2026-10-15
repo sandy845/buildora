@@ -8,6 +8,7 @@ const testPort = process.env.PLAYWRIGHT_TEST_PORT || "3000";
  */
 export default defineConfig({
   testDir: "./tests/e2e",
+  globalSetup: "./tests/e2e/global-setup.ts",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
@@ -33,6 +34,10 @@ export default defineConfig({
     url: `http://localhost:${testPort}`,
     reuseExistingServer: true,
     timeout: 120_000,
-    env: { E2E_TEST: "1" },
+    env: {
+      E2E_TEST: "1",
+      DATABASE_URL: process.env.E2E_DATABASE_URL || "",
+      AUTH_SECRET: process.env.AUTH_SECRET || "buildora_e2e_only_secret_key_at_least_32_chars",
+    },
   },
 });

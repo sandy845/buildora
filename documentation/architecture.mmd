@@ -1,0 +1,21 @@
+flowchart TB
+    Browser[Browser: public, customer, admin]
+    subgraph Next[Next.js application]
+        UI[Pages and React components]
+        Routes[Route handlers and server actions]
+        Domain[Validation, auth, ownership guards]
+        Data[Prisma data access]
+    end
+    PostgreSQL[(PostgreSQL)]
+    Firebase[Optional Firebase Admin]
+    Email[Optional Resend / Postmark / SMTP]
+    S3[Optional S3-compatible storage]
+    Browser --> UI
+    Browser --> Routes
+    UI --> Routes
+    Routes --> Domain
+    Domain --> Data
+    Data --> PostgreSQL
+    Domain -. identity token verification .-> Firebase
+    Domain -. notification .-> Email
+    Routes -. presigned file operations .-> S3

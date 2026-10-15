@@ -1,0 +1,11 @@
+flowchart LR
+    Visitor[Visitor] --> UC1((Browse services and portfolio))
+    Visitor --> UC2((Submit project enquiry))
+    Visitor --> UC3((View indicative estimate))
+    Customer[Customer] --> UC4((Register / sign in))
+    Customer --> UC5((View own project records))
+    Customer --> UC6((Use selected approvals and messages))
+    Admin[Administrator] --> UC7((Review and update leads))
+    Admin --> UC8((Create or update project))
+    Admin --> UC9((Create quotation))
+    Admin --> UC10((Record manual payment))

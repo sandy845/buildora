@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="540" viewBox="0 0 1000 540">
+  <defs>
+    <marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="#36536b"/></marker>
+    <style>
+      .title{font:700 24px Arial;fill:#183247}.box{fill:#eef4f7;stroke:#36536b;stroke-width:2}
+      .decision{fill:#fff8e9;stroke:#b07b20;stroke-width:2}.txt{font:14px Arial;fill:#183247}
+      .flow{stroke:#36536b;stroke-width:2;fill:none;marker-end:url(#a)}.note{font:13px Arial;fill:#526878}
+    </style>
+  </defs>
+  <rect width="1000" height="540" fill="white"/>
+  <text x="500" y="36" text-anchor="middle" class="title">Enquiry submission activity</text>
+  <ellipse cx="500" cy="76" rx="15" ry="15" fill="#2c7165"/>
+  <rect x="370" y="110" width="260" height="50" rx="10" class="box"/><text x="500" y="141" text-anchor="middle" class="txt">Enter enquiry details</text>
+  <rect x="370" y="184" width="260" height="50" rx="10" class="box"/><text x="500" y="215" text-anchor="middle" class="txt">Apply rate limit and validate fields</text>
+  <polygon points="500,258 610,302 500,346 390,302" class="decision"/><text x="500" y="307" text-anchor="middle" class="txt">Input valid?</text>
+  <rect x="80" y="280" width="230" height="56" rx="10" class="box"/><text x="195" y="304" text-anchor="middle" class="txt">Return field errors</text><text x="195" y="324" text-anchor="middle" class="note">No lead created</text>
+  <rect x="370" y="370" width="260" height="50" rx="10" class="box"/><text x="500" y="401" text-anchor="middle" class="txt">Persist lead in PostgreSQL</text>
+  <polygon points="500,436 610,476 500,516 390,476" class="decision"/><text x="500" y="481" text-anchor="middle" class="txt">Signed-in customer?</text>
+  <rect x="690" y="450" width="245" height="55" rx="10" class="box"/><text x="812" y="474" text-anchor="middle" class="txt">Attempt linked project</text><text x="812" y="493" text-anchor="middle" class="note">Best effort only</text>
+  <path d="M500 91V102M500 160V176M500 234V250M390 302H318M500 346V362M500 420V428M610 476H682M500 516V526" class="flow"/>
+  <path d="M195 280V244H370" class="flow"/>
+  <text x="342" y="291" class="note">No</text><text x="515" y="359" class="note">Yes</text><text x="623" y="464" class="note">Yes</text>
+  <text x="500" y="533" text-anchor="middle" class="note">Send configured notifications; return success with lead ID. Email failure does not undo a saved lead.</text>
+</svg>

@@ -95,11 +95,19 @@ export async function assertProjectAccess(actor: ServiceActor, projectId: string
     throw new ServiceError("Project not found.", "NOT_FOUND");
   }
 
-  if (actor.role !== "admin" && project.customerId !== actor.id) {
-    throw new ServiceError("You cannot access this project.", "FORBIDDEN");
-  }
+  assertProjectOwner(actor, project.customerId);
 
   return project;
+}
+
+export function assertProjectOwner(actor: ServiceActor, customerId: string) {
+  if (!canAccessProject(actor, customerId)) {
+    throw new ServiceError("You cannot access this project.", "FORBIDDEN");
+  }
+}
+
+export function canAccessProject(actor: ServiceActor, customerId: string) {
+  return actor.role === "admin" || customerId === actor.id;
 }
 
 export function assertProjectCustomer(actor: ServiceActor, customerId: string) {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/server";
 import { prisma } from "@/lib/db/prisma";
 import { recordAudit } from "@/lib/audit";
+import { canAccessProject } from "@/lib/services/shared";
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
@@ -19,7 +20,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       select: { id: true, projectId: true, status: true, project: { select: { customerId: true, name: true } } },
     });
     if (!quotation || !quotation.projectId || !quotation.project) return NextResponse.json({ error: "Quotation not found." }, { status: 404 });
-    if (user.role !== "admin" && quotation.project.customerId !== user.id) return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+    if (!canAccessProject(user, quotation.project.customerId)) return NextResponse.json({ error: "Forbidden." }, { status: 403 });
 
     const updated = await prisma.quotation.update({
       where: { id },

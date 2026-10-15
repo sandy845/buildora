@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="590" viewBox="0 0 1000 590">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#36536b"/></marker>
+    <style>
+      .title{font:700 24px Arial;fill:#183247}.head{font:700 16px Arial;fill:white}
+      .txt{font:13px Arial;fill:#30495c}.entity{fill:#eef4f7;stroke:#36536b;stroke-width:2}
+      .bar{fill:#36536b}.relation{stroke:#8193a0;stroke-width:2;fill:none;marker-end:url(#arrow)}
+      .label{font:12px Arial;fill:#526878}
+    </style>
+  </defs>
+  <rect width="1000" height="590" fill="white"/>
+  <text x="500" y="38" text-anchor="middle" class="title">Conceptual project data model</text>
+  <g transform="translate(48 86)">
+    <rect width="195" height="126" rx="8" class="entity"/><path d="M0 8 Q0 0 8 0 H187 Q195 0 195 8 V34 H0Z" class="bar"/>
+    <text x="97" y="24" text-anchor="middle" class="head">USER</text><text x="14" y="58" class="txt">id (PK)</text><text x="14" y="80" class="txt">normalizedEmail (unique)</text><text x="14" y="102" class="txt">role / accountStatus</text>
+  </g>
+  <g transform="translate(350 86)">
+    <rect width="195" height="126" rx="8" class="entity"/><path d="M0 8 Q0 0 8 0 H187 Q195 0 195 8 V34 H0Z" class="bar"/>
+    <text x="97" y="24" text-anchor="middle" class="head">LEAD</text><text x="14" y="58" class="txt">id (PK), customerId (FK)</text><text x="14" y="80" class="txt">email, projectBrief</text><text x="14" y="102" class="txt">status, assignedAdminId</text>
+  </g>
+  <g transform="translate(650 86)">
+    <rect width="195" height="126" rx="8" class="entity"/><path d="M0 8 Q0 0 8 0 H187 Q195 0 195 8 V34 H0Z" class="bar"/>
+    <text x="97" y="24" text-anchor="middle" class="head">PROJECT</text><text x="14" y="58" class="txt">id (PK), customerId (FK)</text><text x="14" y="80" class="txt">originatingLeadId (FK)</text><text x="14" y="102" class="txt">status, progress</text>
+  </g>
+  <path d="M243 145 L342 145" class="relation"/><text x="292" y="134" text-anchor="middle" class="label">submits / assigned</text>
+  <path d="M545 145 L642 145" class="relation"/><text x="593" y="134" text-anchor="middle" class="label">may originate</text>
+  <path d="M145 212 L145 330 L746 330 L746 220" class="relation"/><text x="445" y="319" text-anchor="middle" class="label">owns (one user to many projects)</text>
+  <g transform="translate(75 390)">
+    <rect width="180" height="116" rx="8" class="entity"/><path d="M0 8 Q0 0 8 0 H172 Q180 0 180 8 V32 H0Z" class="bar"/><text x="90" y="23" text-anchor="middle" class="head">QUOTATION</text><text x="12" y="56" class="txt">projectId (FK), status</text><text x="12" y="80" class="txt">total, line items</text>
+  </g>
+  <g transform="translate(295 390)">
+    <rect width="180" height="116" rx="8" class="entity"/><path d="M0 8 Q0 0 8 0 H172 Q180 0 180 8 V32 H0Z" class="bar"/><text x="90" y="23" text-anchor="middle" class="head">PAYMENT</text><text x="12" y="56" class="txt">projectId (FK), amount</text><text x="12" y="80" class="txt">status / method</text>
+  </g>
+  <g transform="translate(515 390)">
+    <rect width="180" height="116" rx="8" class="entity"/><path d="M0 8 Q0 0 8 0 H172 Q180 0 180 8 V32 H0Z" class="bar"/><text x="90" y="23" text-anchor="middle" class="head">DOCUMENT</text><text x="12" y="56" class="txt">projectId (FK), type</text><text x="12" y="80" class="txt">versions / metadata</text>
+  </g>
+  <g transform="translate(735 390)">
+    <rect width="180" height="116" rx="8" class="entity"/><path d="M0 8 Q0 0 8 0 H172 Q180 0 180 8 V32 H0Z" class="bar"/><text x="90" y="23" text-anchor="middle" class="head">APPROVAL</text><text x="12" y="56" class="txt">projectId (FK), status</text><text x="12" y="80" class="txt">target type / decision</text>
+  </g>
+  <path d="M746 212 L746 360 L165 360 L165 382" class="relation"/>
+  <path d="M746 212 L746 360 L385 360 L385 382" class="relation"/>
+  <path d="M746 212 L746 360 L605 360 L605 382" class="relation"/>
+  <path d="M746 212 L825 382" class="relation"/>
+  <text x="500" y="550" text-anchor="middle" class="txt">Conceptual summary only; the Prisma schema contains additional entities and relations.</text>
+</svg>

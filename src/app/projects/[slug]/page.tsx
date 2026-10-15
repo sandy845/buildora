@@ -4,12 +4,9 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { Container } from "@/components/layout/container";
 import { Section } from "@/components/layout/section";
-import { projects as staticProjects } from "@/data/projects";
 import { getPublicProject } from "@/lib/public-data";
 
-export function generateStaticParams() {
-  return staticProjects.map(({ slug }) => ({ slug }));
-}
+export const dynamic = "force-dynamic";
 
 export function generateMetadata({
   params,

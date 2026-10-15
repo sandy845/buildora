@@ -1,0 +1,23 @@
+sequenceDiagram
+    actor Visitor
+    participant UI as Next.js enquiry UI
+    participant Action as Lead server action
+    participant Limit as Rate limiter
+    participant DB as PostgreSQL / Prisma
+    participant Session as Session lookup
+    participant Email as Configured email adapter
+    Visitor->>UI: Submit project enquiry
+    UI->>Action: FormData / payload
+    Action->>Limit: Check client IP
+    Limit-->>Action: Allow or reject
+    Action->>Action: Validate required fields
+    Action->>DB: Create lead
+    DB-->>Action: Lead identifier
+    Action->>Session: Check current user
+    opt Logged-in customer
+        Session-->>Action: Customer identity
+        Action->>DB: Best-effort project creation
+    end
+    Action->>Email: Attempt customer/admin email
+    Email-->>Action: Provider result
+    Action-->>UI: Success with lead ID

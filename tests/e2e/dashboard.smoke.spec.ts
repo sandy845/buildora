@@ -64,6 +64,17 @@ test.describe("Dashboard & Workspace Smoke Tests", () => {
     await page.getByRole("button", { name: "Cancel" }).click();
   });
 
+  test("customer cannot open or download another customer's project data", async ({ page }) => {
+    await loginAsCustomer(page);
+
+    const projectResponse = await page.goto("/client/projects/33333333-3333-3333-3333-333333333331");
+    expect(projectResponse?.status()).toBe(404);
+
+    const objectKey = "projects/33333333-3333-3333-3333-333333333331/documents/private-test.pdf";
+    const downloadResponse = await page.request.get(`/api/storage/download?key=${encodeURIComponent(objectKey)}`);
+    expect(downloadResponse.status()).toBe(403);
+  });
+
   test("admin dashboard renders high-level operations metrics", async ({ page }) => {
     await loginAsAdmin(page);
 

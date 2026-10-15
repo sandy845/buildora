@@ -8,17 +8,35 @@ type DashboardStateProps = {
 };
 
 export function DashboardState({ type, title, description, action }: DashboardStateProps) {
-  const icon = type === "loading" ? "..." : type === "error" ? "!" : "-";
-
   return (
-    <div className="flex min-h-36 items-center justify-center rounded-2xl border border-dashed border-[#d9cba8] bg-[#faf8f3] px-6 py-8 text-center">
+    <div
+      className="flex min-h-36 items-center justify-center rounded-2xl border border-dashed border-[#d9cba8] bg-[#faf8f3] px-6 py-8 text-center"
+      aria-live="polite"
+    >
       <div>
-        <span className="mx-auto flex h-9 w-9 items-center justify-center rounded-full bg-white text-sm font-semibold text-muted shadow-sm">{icon}</span>
+        {type === "loading" ? (
+          <span
+            aria-label="Loading"
+            className="mx-auto flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-sm"
+          >
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#d9cba8] border-t-[#a98032]" />
+          </span>
+        ) : type === "error" ? (
+          <span className="mx-auto flex h-9 w-9 items-center justify-center rounded-full bg-red-50 text-sm font-bold text-red-600 shadow-sm">
+            !
+          </span>
+        ) : (
+          <span className="mx-auto flex h-9 w-9 items-center justify-center rounded-full bg-white text-sm font-semibold text-muted shadow-sm">
+            —
+          </span>
+        )}
         <p className="mt-3 text-sm font-semibold text-primary">{title}</p>
         <p className="mt-1 max-w-sm text-xs leading-5 text-muted">{description}</p>
         {action && (
           typeof action === "string" ? (
-            <button type="button" className="mt-3 text-xs font-semibold text-primary underline underline-offset-4">{action}</button>
+            <button type="button" className="mt-3 text-xs font-semibold text-primary underline underline-offset-4 hover:text-[#a98032] transition-colors">
+              {action}
+            </button>
           ) : action.href ? (
             <Link
               href={action.href}
@@ -30,7 +48,7 @@ export function DashboardState({ type, title, description, action }: DashboardSt
             <button
               type="button"
               onClick={action.onClick}
-              className="mt-3 text-xs font-semibold text-primary underline underline-offset-4"
+              className="mt-3 text-xs font-semibold text-primary underline underline-offset-4 hover:text-[#a98032] transition-colors"
             >
               {action.label}
             </button>
@@ -40,3 +58,4 @@ export function DashboardState({ type, title, description, action }: DashboardSt
     </div>
   );
 }
+

@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="560" viewBox="0 0 1000 560">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#36536b"/></marker>
+    <style>
+      .title{font:700 25px Arial;fill:#183247}.label{font:600 17px Arial;fill:#183247}
+      .small{font:14px Arial;fill:#30495c}.box{fill:#eef4f7;stroke:#36536b;stroke-width:2}
+      .system{fill:#edf7f4;stroke:#2c7165;stroke-width:3}.opt{fill:#fff8e9;stroke:#b07b20;stroke-width:2}
+      .link{stroke:#36536b;stroke-width:2.5;fill:none;marker-end:url(#arrow)}.dashed{stroke-dasharray:8 7}
+    </style>
+  </defs>
+  <rect width="1000" height="560" fill="white"/>
+  <text x="500" y="42" text-anchor="middle" class="title">Layered application architecture</text>
+  <rect x="42" y="210" width="172" height="88" rx="12" class="box"/>
+  <text x="128" y="246" text-anchor="middle" class="label">Browser</text>
+  <text x="128" y="271" text-anchor="middle" class="small">Public / customer / admin</text>
+  <rect x="260" y="94" width="420" height="356" rx="18" class="system"/>
+  <text x="470" y="128" text-anchor="middle" class="label">NEXT.JS APPLICATION</text>
+  <rect x="292" y="151" width="356" height="52" rx="9" class="box"/>
+  <text x="470" y="183" text-anchor="middle" class="small">Pages and React components</text>
+  <rect x="292" y="220" width="356" height="52" rx="9" class="box"/>
+  <text x="470" y="252" text-anchor="middle" class="small">Route handlers and server actions</text>
+  <rect x="292" y="289" width="356" height="52" rx="9" class="box"/>
+  <text x="470" y="321" text-anchor="middle" class="small">Validation, session, role and ownership checks</text>
+  <rect x="292" y="358" width="356" height="52" rx="9" class="box"/>
+  <text x="470" y="390" text-anchor="middle" class="small">Prisma data access</text>
+  <path d="M214 254 L282 254" class="link"/>
+  <path d="M470 203 L470 212" class="link"/>
+  <path d="M470 272 L470 281" class="link"/>
+  <path d="M470 341 L470 350" class="link"/>
+  <rect x="770" y="98" width="188" height="70" rx="12" class="box"/>
+  <text x="864" y="129" text-anchor="middle" class="label">PostgreSQL</text>
+  <text x="864" y="151" text-anchor="middle" class="small">Relational source of truth</text>
+  <path d="M648 385 C708 385 710 132 762 132" class="link"/>
+  <rect x="770" y="211" width="188" height="56" rx="12" class="opt"/>
+  <text x="864" y="245" text-anchor="middle" class="small">Firebase Admin (optional)</text>
+  <rect x="770" y="296" width="188" height="56" rx="12" class="opt"/>
+  <text x="864" y="330" text-anchor="middle" class="small">Email adapter (optional)</text>
+  <rect x="770" y="381" width="188" height="56" rx="12" class="opt"/>
+  <text x="864" y="415" text-anchor="middle" class="small">S3-compatible storage</text>
+  <path d="M648 310 C710 310 708 239 762 239" class="link dashed"/>
+  <path d="M648 319 C710 319 708 324 762 324" class="link dashed"/>
+  <path d="M648 377 C710 377 708 409 762 409" class="link dashed"/>
+</svg>

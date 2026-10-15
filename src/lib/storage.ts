@@ -57,7 +57,7 @@ export function isStorageConfigured(): boolean {
 }
 
 export function isMockStorageAllowed(): boolean {
-  return process.env.NODE_ENV !== "production";
+  return process.env.NODE_ENV !== "production" && process.env.ALLOW_DEV_STORAGE_MOCK === "1";
 }
 
 export function getStorageProviderName(): "cloudflare-r2" | "aws-s3" | "custom-s3" | "dev-mock" {

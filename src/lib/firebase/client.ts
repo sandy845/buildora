@@ -4,7 +4,6 @@ import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import {
   getAuth,
   signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
   signInWithPopup,
   GoogleAuthProvider,
   signOut,
@@ -12,17 +11,14 @@ import {
   type Auth,
   type UserCredential,
 } from "firebase/auth";
-import { getFirestore, type Firestore } from "firebase/firestore";
 import { firebaseClientConfig, isFirebaseClientConfigured } from "./config";
 
 let app: FirebaseApp | undefined;
 let auth: Auth | undefined;
-let db: Firestore | undefined;
 
 if (typeof window !== "undefined" && isFirebaseClientConfigured()) {
   app = getApps().length === 0 ? initializeApp(firebaseClientConfig) : getApp();
   auth = getAuth(app);
-  db = getFirestore(app);
 }
 
 export function getClientApp(): FirebaseApp | undefined {
@@ -42,16 +38,6 @@ export function getClientAuth(): Auth | undefined {
   return auth;
 }
 
-export function getClientDb(): Firestore | undefined {
-  if (!db) {
-    const clientApp = getClientApp();
-    if (clientApp) {
-      db = getFirestore(clientApp);
-    }
-  }
-  return db;
-}
-
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: "select_account" });
 
@@ -66,65 +52,9 @@ export type GoogleSignInOptions = {
 export async function signInWithGoogle(options?: GoogleSignInOptions): Promise<{ success: boolean; error?: string; user?: unknown }> {
   const clientAuth = getClientAuth();
   if (!clientAuth) {
-    if (process.env.NODE_ENV !== "production") {
-      try {
-        let userEmail = options?.email?.trim();
-        let userName = options?.name?.trim();
-
-        if (typeof window !== "undefined") {
-          const cachedEmail = localStorage.getItem("buildora_last_registered_email") || localStorage.getItem("buildora_dev_google_email") || "";
-          const cachedName = localStorage.getItem("buildora_last_registered_name") || localStorage.getItem("buildora_dev_google_name") || "";
-
-          if (!userEmail) {
-            userEmail = cachedEmail;
-          }
-          if (!userName) {
-            userName = cachedName;
-          }
-
-          if (!userEmail) {
-            const entered = window.prompt(
-              "Sign in with Google (Dev Mode):\nPlease enter your Google account email address:",
-              "sandeepkami2005@gmail.com"
-            );
-            if (!entered) {
-              return { success: false, error: "Google sign-in was cancelled." };
-            }
-            userEmail = entered.trim();
-          }
-
-          if (!userName) {
-            const defaultName = userEmail.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-            const entered = window.prompt("Enter your Google display name:", defaultName);
-            userName = entered?.trim() || defaultName;
-          }
-
-          localStorage.setItem("buildora_dev_google_email", userEmail);
-          if (userName) localStorage.setItem("buildora_dev_google_name", userName);
-        }
-
-        const res = await fetch("/api/auth/session", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            idToken: "dev-mock-google-token",
-            name: userName || "Client User",
-            email: userEmail || "customer@example.com",
-          }),
-        });
-
-        const data = await res.json();
-        if (res.ok && data.success) {
-          return { success: true, user: data.user };
-        }
-      } catch (err) {
-        console.warn("[dev-auth] Mock Google sign-in fallback failed:", err);
-      }
-    }
-
     return {
       success: false,
-      error: "Firebase Client is not configured. Please add NEXT_PUBLIC_FIREBASE_* variables to .env",
+      error: "Firebase Client is not configured. Please add NEXT_PUBLIC_FIREBASE_* variables to .env and ensure the app is running behind a valid Firebase project.",
     };
   }
 

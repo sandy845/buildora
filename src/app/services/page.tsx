@@ -5,6 +5,8 @@ import { Section } from "@/components/layout/section";
 import { ServiceCard } from "@/components/services/service-card";
 import { getPublicServices } from "@/lib/public-data";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Services",
   description: "Explore Buildora construction, interior design, renovation, and planning services.",

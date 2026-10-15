@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { assertProjectAccess, assertProjectCustomer, requireEmail, requireMoney, requirePositive, ServiceError } from "../src/lib/services/shared.ts";
+import { assertProjectAccess, assertProjectCustomer, assertProjectOwner, canAccessProject, requireEmail, requireMoney, requirePositive, ServiceError } from "../src/lib/services/shared.ts";
 
 test("requireEmail validates valid email formats", () => {
   assert.equal(requireEmail("User@Example.COM"), "user@example.com");
@@ -40,6 +40,21 @@ test("assertProjectCustomer allows admins to specify any customer ID", () => {
 test("assertProjectCustomer allows customers to specify only their own customer ID", () => {
   assert.doesNotThrow(() => {
     assertProjectCustomer({ id: "customer-1", role: "customer" }, "customer-1");
+  });
+
+  test("assertProjectOwner permits the project customer and admins only", () => {
+    assert.doesNotThrow(() => assertProjectOwner({ id: "customer-1", role: "customer" }, "customer-1"));
+    assert.doesNotThrow(() => assertProjectOwner({ id: "admin-1", role: "admin" }, "customer-1"));
+    assert.throws(
+      () => assertProjectOwner({ id: "customer-2", role: "customer" }, "customer-1"),
+      (err: unknown) => err instanceof ServiceError && err.code === "FORBIDDEN",
+    );
+  });
+
+  test("canAccessProject denies customers who do not own the project", () => {
+    assert.equal(canAccessProject({ id: "customer-1", role: "customer" }, "customer-1"), true);
+    assert.equal(canAccessProject({ id: "customer-2", role: "customer" }, "customer-1"), false);
+    assert.equal(canAccessProject({ id: "admin-1", role: "admin" }, "customer-1"), true);
   });
 
   assert.throws(

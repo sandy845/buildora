@@ -3,12 +3,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Container } from "@/components/layout/container";
 import { Section } from "@/components/layout/section";
-import { getPublicService, getPublicServices } from "@/lib/public-data";
+import { getPublicService } from "@/lib/public-data";
 
-export async function generateStaticParams() {
-  const services = await getPublicServices();
-  return services.map((service) => ({ slug: service.slug }));
-}
+export const dynamic = "force-dynamic";
 
 export function generateMetadata({
   params,

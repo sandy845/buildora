@@ -15,12 +15,13 @@ type Props = {
   messages: { id: string; title: string; detail: string }[];
   notifications: { id: string; title: string; detail: string; unread: boolean }[];
   account: { name: string; email: string } | null;
+  dataUnavailable: boolean;
 };
 
 const phases = ["Planning", "Design", "Approval", "Construction", "Finishing", "Completed"];
 const cardClass = "dashboard-card scroll-mt-28 rounded-[1.5rem] border border-border bg-white p-5 shadow-[0_12px_35px_-28px_rgba(14,19,25,0.35)] sm:p-6";
 
-export function ClientDashboardClient({ navItems, stats, projects, activity, quotations, documents, messages, notifications, account }: Props) {
+export function ClientDashboardClient({ navItems, stats, projects, activity, quotations, documents, messages, notifications, account, dataUnavailable }: Props) {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [notificationItems, setNotificationItems] = useState(notifications);
   const [selectedProjectId, setSelectedProjectId] = useState<string>(projects[0]?.id || "");
@@ -59,6 +60,11 @@ export function ClientDashboardClient({ navItems, stats, projects, activity, quo
 
   return (
     <main className="min-h-screen bg-[#f0ede7]">
+      {dataUnavailable && (
+        <div role="status" className="border-b border-amber-300 bg-amber-50 px-4 py-3 text-center text-sm font-medium text-amber-900">
+          Project data is temporarily unavailable. The values below are not current; please try again later.
+        </div>
+      )}
       <header className="sticky top-0 z-30 border-b border-border bg-[#f8f6f0]/95 backdrop-blur">
         <div className="flex h-[4.5rem] items-center justify-between px-4 sm:px-6 lg:px-10">
           <div className="flex items-center gap-4">

@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="390" viewBox="0 0 1000 390">
+  <defs>
+    <style>
+      .title{font:700 23px Arial;fill:#183247}.label{font:14px Arial;fill:#30495c}
+      .grid{stroke:#d5dfe5;stroke-width:1}.bar1{fill:#2c7165}.bar2{fill:#477f9d}.bar3{fill:#b07b20}
+    </style>
+  </defs>
+  <rect width="1000" height="390" fill="white"/>
+  <text x="500" y="35" text-anchor="middle" class="title">Illustrative 18-week completion schedule</text>
+  <g class="grid">
+    <path d="M300 70V360M337 70V360M374 70V360M411 70V360M448 70V360M485 70V360M522 70V360M559 70V360M596 70V360M633 70V360M670 70V360M707 70V360M744 70V360M781 70V360M818 70V360M855 70V360M892 70V360M929 70V360M966 70V360"/>
+    <path d="M300 100H966M300 140H966M300 180H966M300 220H966M300 260H966M300 300H966M300 340H966"/>
+  </g>
+  <g class="label">
+    <text x="20" y="94">Scope and requirements</text><text x="20" y="134">Architecture / migrations</text>
+    <text x="20" y="174">Identity / access controls</text><text x="20" y="214">Enquiry / customer workflows</text>
+    <text x="20" y="254">Admin / integrations</text><text x="20" y="294">Verification / security</text>
+    <text x="20" y="334">Release readiness / report</text>
+  </g>
+  <g class="label" text-anchor="middle">
+    <text x="318" y="60">1</text><text x="355" y="60">2</text><text x="392" y="60">3</text><text x="429" y="60">4</text>
+    <text x="466" y="60">5</text><text x="503" y="60">6</text><text x="540" y="60">7</text><text x="577" y="60">8</text>
+    <text x="614" y="60">9</text><text x="651" y="60">10</text><text x="688" y="60">11</text><text x="725" y="60">12</text>
+    <text x="762" y="60">13</text><text x="799" y="60">14</text><text x="836" y="60">15</text><text x="873" y="60">16</text>
+    <text x="910" y="60">17</text><text x="947" y="60">18</text>
+  </g>
+  <rect x="302" y="77" width="72" height="22" rx="6" class="bar1"/><rect x="339" y="117" width="110" height="22" rx="6" class="bar2"/>
+  <rect x="413" y="157" width="147" height="22" rx="6" class="bar1"/><rect x="487" y="197" width="184" height="22" rx="6" class="bar2"/>
+  <rect x="598" y="237" width="147" height="22" rx="6" class="bar3"/><rect x="709" y="277" width="184" height="22" rx="6" class="bar1"/>
+  <rect x="930" y="317" width="36" height="22" rx="6" class="bar3"/>
+  <text x="500" y="380" text-anchor="middle" class="label">Illustrative proposal only; not historical dates or measured effort. Replan after team capacity and milestones are agreed.</text>
+</svg>

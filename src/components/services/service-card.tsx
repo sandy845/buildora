@@ -14,7 +14,7 @@ export function ServiceCard({ service, index }: ServiceCardProps) {
       
       <div className="flex items-center justify-between">
         <span className="font-mono text-[11px] font-black tracking-widest text-[#a98032]">
-          DISCIPLINE 0{index + 1} //
+          DISCIPLINE 0{index + 1} {"//"}
         </span>
         <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#f8f6f0] font-mono text-xs font-bold text-[#0a0e14] ring-1 ring-[#e4dec8]">
           {service.title.slice(0, 1)}
