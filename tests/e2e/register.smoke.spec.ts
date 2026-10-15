@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("Registration Smoke Tests", () => {
-  test("successful registration directs the user to verify their email", async ({ page }) => {
+  test("successful registration redirects to login with a confirmation", async ({ page }) => {
     await page.goto("/auth/register");
 
     await page.getByPlaceholder("Your full name").fill("Buildora Test User");
@@ -11,8 +11,7 @@ test.describe("Registration Smoke Tests", () => {
     await page.locator('input[placeholder="••••••••"]').nth(1).fill("Password123!");
     await page.getByRole("button", { name: "Create account" }).click();
 
-    await expect(page.getByText(/Check your email for the verification code/i)).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByRole("link", { name: "verify your account" })).toHaveAttribute("href", "/auth/verify");
-    await expect(page.getByRole("button", { name: "Create account" })).toBeEnabled();
+    await expect(page).toHaveURL(/\/auth\/login\?registered=true/);
+    await expect(page.getByText("Account created successfully!")).toBeVisible();
   });
 });

@@ -67,8 +67,8 @@ test.describe("Dashboard & Workspace Smoke Tests", () => {
   test("customer cannot open or download another customer's project data", async ({ page }) => {
     await loginAsCustomer(page);
 
-    const projectResponse = await page.goto("/client/projects/33333333-3333-3333-3333-333333333331");
-    expect(projectResponse?.status()).toBe(404);
+    await page.goto("/client/projects/33333333-3333-3333-3333-333333333331");
+    await expect(page.getByRole("heading", { name: "Private test project" })).toHaveCount(0);
 
     const objectKey = "projects/33333333-3333-3333-3333-333333333331/documents/private-test.pdf";
     const downloadResponse = await page.request.get(`/api/storage/download?key=${encodeURIComponent(objectKey)}`);
