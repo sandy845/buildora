@@ -57,6 +57,11 @@ export function ClientDashboardClient({
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [notificationItems, setNotificationItems] = useState(notifications);
   const [selectedProjectId, setSelectedProjectId] = useState<string>(projects[0]?.id || "");
+  const [isCircleHovered, setIsCircleHovered] = useState(false);
+  const [isOverviewCircleHovered, setIsOverviewCircleHovered] = useState(false);
+  const [hoveredBarPart, setHoveredBarPart] = useState<"done" | "pending" | null>(null);
+  const [overviewHoveredBarPart, setOverviewHoveredBarPart] = useState<"done" | "pending" | null>(null);
+  const [hoveredPhaseIndex, setHoveredPhaseIndex] = useState<number | null>(null);
 
   const project = projects.find((p) => p.id === selectedProjectId) || projects[0];
   const progress = project?.progress ?? 0;
@@ -232,21 +237,135 @@ export function ClientDashboardClient({
                     </div>
                   </div>
 
-                  {/* High level progress strip */}
-                  <div className="mt-7 flex flex-wrap items-end justify-between gap-4">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="text-xs uppercase tracking-[0.14em] text-muted">Completion Status</p>
-                        <span className="rounded-full bg-[#c5a059]/15 px-2 py-0.5 text-[10px] font-bold text-[#a98032]">
-                          {workPending}% Pending
-                        </span>
+                  {/* Interactive Progress Strip with Circular Gauge & Dual Bar */}
+                  <div className="mt-7 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-5">
+                      {/* Interactive Mini Circular Gauge */}
+                      <div
+                        className="group relative flex-shrink-0 cursor-pointer transition-transform duration-300 hover:scale-105"
+                        onMouseEnter={() => setIsOverviewCircleHovered(true)}
+                        onMouseLeave={() => setIsOverviewCircleHovered(false)}
+                        title="Touch circle to view completion & pending details"
+                      >
+                        <div className={`absolute inset-0 rounded-full transition-all duration-300 ${
+                          isOverviewCircleHovered ? "bg-[#c5a059]/25 shadow-[0_0_24px_rgba(197,160,89,0.4)]" : "bg-gradient-to-br from-[#e5c875]/20 via-transparent to-[#c5a059]/10"
+                        }`} style={{ borderRadius: "50%" }} />
+                        <svg width="100" height="100" viewBox="0 0 100 100" className="drop-shadow-xs">
+                          <circle cx="50" cy="50" r="40" fill="none" stroke="#eae5d6" strokeWidth="8" />
+                          <circle
+                            className="progress-ring-fill"
+                            cx="50" cy="50" r="40"
+                            fill="none"
+                            stroke="url(#overviewRingGrad)"
+                            strokeWidth="8"
+                            strokeLinecap="round"
+                            style={{
+                              "--ring-offset": `${251.32 * (1 - progress / 100)}`,
+                              strokeDasharray: "251.32",
+                            } as React.CSSProperties}
+                          />
+                          <defs>
+                            <linearGradient id="overviewRingGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                              <stop offset="0%" stopColor="#ab8536" />
+                              <stop offset="50%" stopColor="#e5c875" />
+                              <stop offset="100%" stopColor="#c5a059" />
+                            </linearGradient>
+                          </defs>
+                          <text x="50" y="47" textAnchor="middle" fontSize="18" fontWeight="700" fill="#0e1319" fontFamily="var(--font-manrope),system-ui">{progress}%</text>
+                          <text x="50" y="61" textAnchor="middle" fontSize="8" fontWeight="700" fill="#a98032" letterSpacing="0.12em">DONE</text>
+                        </svg>
+
+                        {/* Interactive floating tooltip on touching circle */}
+                        {isOverviewCircleHovered && (
+                          <div className="absolute -top-14 left-1/2 z-30 -translate-x-1/2 whitespace-nowrap rounded-xl border border-[#c5a059] bg-[#0a0e14] px-3.5 py-1.5 text-xs text-white shadow-xl shadow-black/40">
+                            <span className="font-bold text-[#e5c875]">{progress}% Completed</span> · <span className="text-amber-200">{workPending}% Pending</span>
+                            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 h-2 w-2 rotate-45 border-b border-r border-[#c5a059] bg-[#0a0e14]" />
+                          </div>
+                        )}
                       </div>
-                      <p className="mt-2 text-4xl font-semibold tracking-[-0.06em] text-primary">{progress}% <span className="text-base font-normal text-muted">Done</span></p>
+
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs uppercase tracking-[0.14em] text-muted">Completion Status</p>
+                          <span className="rounded-full bg-[#c5a059]/15 px-2 py-0.5 text-[10px] font-bold text-[#a98032]">
+                            {workPending}% Pending
+                          </span>
+                        </div>
+                        <p className="mt-1 text-3xl font-semibold tracking-[-0.04em] text-primary">{progress}% <span className="text-base font-normal text-muted">Done</span></p>
+                        <p className="mt-1 text-xs text-muted">Phase {currentPhase + 1} of 6: <strong className="text-primary">{phases[currentPhase]}</strong></p>
+                      </div>
                     </div>
-                    <p className="text-right text-xs text-muted">Current Active Milestone<br /><strong className="mt-1 inline-block text-sm text-primary">{project.milestone}</strong></p>
+
+                    <div className="text-left sm:text-right">
+                      <p className="text-xs text-muted">Current Active Milestone</p>
+                      <strong className="mt-1 inline-block text-sm text-primary">{project.milestone}</strong>
+                      <p className="mt-0.5 text-xs text-muted">Scheduled Target: {project.due}</p>
+                    </div>
                   </div>
-                  <div className="mt-5 h-3 overflow-hidden rounded-full bg-[#eee9dd]">
-                    <div className="dashboard-progress h-full rounded-full bg-[#c5a059]" style={{ width: `${progress}%` }} />
+
+                  {/* Interactive Dual Done/Pending Progress Bar */}
+                  <div className="mt-6">
+                    <div className="mb-2 flex items-center justify-between text-xs">
+                      <button
+                        type="button"
+                        onMouseEnter={() => setOverviewHoveredBarPart("done")}
+                        onMouseLeave={() => setOverviewHoveredBarPart(null)}
+                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-semibold transition-all ${
+                          overviewHoveredBarPart === "done"
+                            ? "bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-500/30 scale-105"
+                            : "bg-emerald-50 text-emerald-800 hover:bg-emerald-100 cursor-pointer"
+                        }`}
+                      >
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        Done: {progress}%
+                      </button>
+                      <button
+                        type="button"
+                        onMouseEnter={() => setOverviewHoveredBarPart("pending")}
+                        onMouseLeave={() => setOverviewHoveredBarPart(null)}
+                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-semibold transition-all ${
+                          overviewHoveredBarPart === "pending"
+                            ? "bg-amber-500 text-white shadow-sm ring-2 ring-amber-400/30 scale-105"
+                            : "bg-amber-50 text-amber-900 hover:bg-amber-100 cursor-pointer"
+                        }`}
+                      >
+                        <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                        Pending: {workPending}%
+                      </button>
+                    </div>
+
+                    <div className="relative flex h-3.5 overflow-hidden rounded-full bg-[#eee9dd] shadow-inner">
+                      {/* Done segment */}
+                      <div
+                        onMouseEnter={() => setOverviewHoveredBarPart("done")}
+                        onMouseLeave={() => setOverviewHoveredBarPart(null)}
+                        className={`dashboard-progress h-full cursor-pointer transition-all duration-200 ${
+                          overviewHoveredBarPart === "done" ? "brightness-110 ring-2 ring-[#c5a059]" : ""
+                        }`}
+                        style={{
+                          width: `${progress}%`,
+                          background: "linear-gradient(90deg, #ab8536 0%, #e5c875 60%, #c5a059 100%)",
+                        }}
+                      />
+                      {/* Pending segment */}
+                      <div
+                        onMouseEnter={() => setOverviewHoveredBarPart("pending")}
+                        onMouseLeave={() => setOverviewHoveredBarPart(null)}
+                        className={`h-full cursor-pointer transition-all duration-200 ${
+                          overviewHoveredBarPart === "pending" ? "bg-amber-300 ring-2 ring-amber-400" : "bg-amber-200/70"
+                        }`}
+                        style={{ width: `${workPending}%` }}
+                      />
+
+                      {/* Tooltip on cursor touching the bar */}
+                      {overviewHoveredBarPart && (
+                        <div className="absolute -top-10 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-lg bg-[#0a0e14] px-3 py-1 text-[11px] font-medium text-white shadow-lg">
+                          {overviewHoveredBarPart === "done"
+                            ? `✓ ${progress}% Completed: Planning, Structural & MEP verified`
+                            : `⏳ ${workPending}% Pending: Italian Marble, Joinery & Finishing`}
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="mt-7 grid grid-cols-3 gap-3 border-t border-border pt-4 text-xs">
                     <div><p className="text-muted">Target Completion</p><p className="mt-1 font-semibold text-primary">{project.due}</p></div>
@@ -392,9 +511,16 @@ export function ClientDashboardClient({
                 </div>
 
                 <div className="mt-8 flex flex-col items-center gap-10 lg:flex-row lg:items-start lg:gap-14">
-                  {/* Progress Gauge Ring */}
-                  <div className="relative flex-shrink-0">
-                    <div className="absolute inset-0 rounded-full bg-gradient-to-br from-[#e5c875]/20 via-transparent to-[#c5a059]/10" style={{ borderRadius: "50%" }} />
+                  {/* Progress Gauge Ring with Interactive Cursor Touch */}
+                  <div
+                    className="group relative flex-shrink-0 cursor-pointer transition-transform duration-300 hover:scale-105"
+                    onMouseEnter={() => setIsCircleHovered(true)}
+                    onMouseLeave={() => setIsCircleHovered(false)}
+                    title="Touch circle to view completion & pending details"
+                  >
+                    <div className={`absolute inset-0 rounded-full transition-all duration-300 ${
+                      isCircleHovered ? "bg-[#c5a059]/25 shadow-[0_0_35px_rgba(197,160,89,0.45)]" : "bg-gradient-to-br from-[#e5c875]/20 via-transparent to-[#c5a059]/10"
+                    }`} style={{ borderRadius: "50%" }} />
                     <svg width="220" height="220" viewBox="0 0 220 220" className="drop-shadow-sm" aria-label={`Project is ${progress}% complete`}>
                       <circle cx="110" cy="110" r="90" fill="none" stroke="#eae5d6" strokeWidth="10" />
                       <circle cx="110" cy="110" r="90" fill="none" stroke="rgba(197,160,89,0.08)" strokeWidth="18" />
@@ -432,6 +558,21 @@ export function ClientDashboardClient({
                       <text x="110" y="118" textAnchor="middle" fontSize="10" fontWeight="700" fill="#a98032" letterSpacing="0.14em">COMPLETED</text>
                       <text x="110" y="138" textAnchor="middle" fontSize="11" fontWeight="600" fill="#625d57">{workPending}% PENDING</text>
                     </svg>
+
+                    {/* Floating interactive tooltip when cursor touches circle */}
+                    {isCircleHovered && (
+                      <div className="absolute -top-14 left-1/2 z-30 -translate-x-1/2 whitespace-nowrap rounded-2xl border border-[#c5a059] bg-[#0a0e14] px-4 py-2 text-xs text-white shadow-2xl shadow-black/50">
+                        <div className="flex items-center gap-2">
+                          <span className="inline-block h-2 w-2 rounded-full bg-emerald-400" />
+                          <span className="font-bold text-[#e5c875]">{progress}% Completed</span>
+                          <span className="text-neutral-400">|</span>
+                          <span className="inline-block h-2 w-2 rounded-full bg-amber-400" />
+                          <span className="text-amber-200 font-semibold">{workPending}% Pending</span>
+                        </div>
+                        <p className="mt-1 text-[11px] text-neutral-300">Phase {currentPhase + 1} of 6: {phases[currentPhase]}</p>
+                        <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 h-3 w-3 rotate-45 border-b border-r border-[#c5a059] bg-[#0a0e14]" />
+                      </div>
+                    )}
                   </div>
 
                   {/* Status Metrics & Stepper */}
@@ -445,7 +586,7 @@ export function ClientDashboardClient({
                       ].map((chip, i) => (
                         <div
                           key={chip.label}
-                          className="progress-stat-chip rounded-2xl border border-[#e4dec8] bg-[#faf8f3] p-4"
+                          className="progress-stat-chip rounded-2xl border border-[#e4dec8] bg-[#faf8f3] p-4 transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-xs"
                           style={{ animationDelay: `${180 + i * 80}ms` }}
                         >
                           <p className="text-base">{chip.icon}</p>
@@ -455,7 +596,7 @@ export function ClientDashboardClient({
                       ))}
                     </div>
 
-                    {/* 6-Phase Stepper */}
+                    {/* 6-Phase Stepper with interactive hover nodes */}
                     <div>
                       <div className="mb-4 flex items-center justify-between">
                         <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted">Architectural &amp; Build Lifecycle</p>
@@ -465,8 +606,14 @@ export function ClientDashboardClient({
                         {phases.map((phase, i) => {
                           const done = i < currentPhase;
                           const active = i === currentPhase;
+                          const isHovered = hoveredPhaseIndex === i;
                           return (
-                            <div key={phase} className="relative flex-1 text-center">
+                            <div
+                              key={phase}
+                              className="relative flex-1 text-center"
+                              onMouseEnter={() => setHoveredPhaseIndex(i)}
+                              onMouseLeave={() => setHoveredPhaseIndex(null)}
+                            >
                               {i > 0 && (
                                 <span className="absolute left-0 top-[17px] block h-px w-1/2 -translate-x-full origin-left bg-border" aria-hidden="true">
                                   {done && <span className="phase-connector-fill absolute inset-0 origin-left bg-[#c5a059]" style={{ animationDelay: `${300 + i * 120}ms` }} />}
@@ -478,7 +625,9 @@ export function ClientDashboardClient({
                                 </span>
                               )}
                               <div
-                                className={`phase-node-pop relative z-10 mx-auto flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold transition-all ${
+                                className={`phase-node-pop relative z-10 mx-auto flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-xs font-bold transition-all duration-300 ${
+                                  isHovered ? "scale-110 shadow-lg ring-4 ring-[#c5a059]/40" : ""
+                                } ${
                                   done
                                     ? "border-2 border-[#c5a059] bg-[#c5a059] text-white shadow-md shadow-[#c5a059]/30"
                                     : active
@@ -488,6 +637,13 @@ export function ClientDashboardClient({
                                 style={{ animationDelay: `${250 + i * 90}ms` }}
                               >
                                 {done ? "✓" : <span className="text-[10px]">{String(i + 1).padStart(2, "0")}</span>}
+
+                                {/* Phase hover tooltip */}
+                                {isHovered && (
+                                  <div className="absolute -top-10 left-1/2 z-30 -translate-x-1/2 whitespace-nowrap rounded-lg bg-[#0a0e14] px-2.5 py-1 text-[10px] font-bold text-white shadow-md">
+                                    {done ? `✓ ${phase} (Completed)` : active ? `📍 ${phase} (Active Now)` : `⏳ ${phase} (Upcoming)`}
+                                  </div>
+                                )}
                               </div>
                               <p className={`relative mt-2.5 text-[9px] font-semibold uppercase tracking-[0.08em] leading-tight ${active ? "text-[#a98032]" : done ? "text-primary" : "text-muted"}`}>
                                 {phase}
@@ -498,23 +654,67 @@ export function ClientDashboardClient({
                       </div>
                     </div>
 
-                    {/* Dual Color Progress Bar */}
+                    {/* Dual Color Progress Bar with interactive cursor touch */}
                     <div>
                       <div className="mb-2 flex items-center justify-between text-xs">
-                        <span className="font-semibold text-emerald-800">Done: {progress}%</span>
-                        <span className="font-semibold text-amber-800">Pending: {workPending}%</span>
+                        <button
+                          type="button"
+                          onMouseEnter={() => setHoveredBarPart("done")}
+                          onMouseLeave={() => setHoveredBarPart(null)}
+                          className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-semibold transition-all ${
+                            hoveredBarPart === "done"
+                              ? "bg-emerald-600 text-white shadow-md ring-2 ring-emerald-500/30 scale-105"
+                              : "bg-emerald-50 text-emerald-800 hover:bg-emerald-100 cursor-pointer"
+                          }`}
+                        >
+                          <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                          Done: {progress}%
+                        </button>
+                        <button
+                          type="button"
+                          onMouseEnter={() => setHoveredBarPart("pending")}
+                          onMouseLeave={() => setHoveredBarPart(null)}
+                          className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-semibold transition-all ${
+                            hoveredBarPart === "pending"
+                              ? "bg-amber-500 text-white shadow-md ring-2 ring-amber-400/30 scale-105"
+                              : "bg-amber-50 text-amber-900 hover:bg-amber-100 cursor-pointer"
+                          }`}
+                        >
+                          <span className="h-2 w-2 rounded-full bg-amber-500" />
+                          Pending: {workPending}%
+                        </button>
                       </div>
-                      <div className="flex h-3 overflow-hidden rounded-full bg-[#eae5d6]">
+
+                      <div className="relative flex h-3.5 overflow-hidden rounded-full bg-[#eae5d6] shadow-inner">
                         <div
-                          className="dashboard-progress h-full bg-[#c5a059]"
-                          style={{ width: `${progress}%` }}
-                          title={`Completed: ${progress}%`}
+                          onMouseEnter={() => setHoveredBarPart("done")}
+                          onMouseLeave={() => setHoveredBarPart(null)}
+                          className={`dashboard-progress h-full cursor-pointer transition-all duration-200 ${
+                            hoveredBarPart === "done" ? "brightness-110 ring-2 ring-[#c5a059]" : ""
+                          }`}
+                          style={{
+                            width: `${progress}%`,
+                            background: "linear-gradient(90deg, #ab8536 0%, #e5c875 60%, #c5a059 100%)",
+                          }}
                         />
                         <div
-                          className="h-full bg-amber-200/70"
+                          onMouseEnter={() => setHoveredBarPart("pending")}
+                          onMouseLeave={() => setHoveredBarPart(null)}
+                          className={`h-full cursor-pointer transition-all duration-200 ${
+                            hoveredBarPart === "pending" ? "bg-amber-300 ring-2 ring-amber-400" : "bg-amber-200/70"
+                          }`}
                           style={{ width: `${workPending}%` }}
-                          title={`Pending: ${workPending}%`}
                         />
+
+                        {/* Interactive tooltip when cursor touches bar */}
+                        {hoveredBarPart && (
+                          <div className="absolute -top-11 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-xl bg-[#0a0e14] px-3.5 py-1.5 text-xs text-white shadow-xl">
+                            {hoveredBarPart === "done"
+                              ? `✓ ${progress}% Completed: Planning, Structural & MEP verified`
+                              : `⏳ ${workPending}% Pending: Italian Marble, Joinery & Finishing in queue`}
+                            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 h-2 w-2 rotate-45 bg-[#0a0e14]" />
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
