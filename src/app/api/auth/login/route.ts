@@ -1,6 +1,14 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { authLoginLimiter, getClientIp, getRateLimitHeaders } from "@/lib/rate-limit";
 import { loginUser } from "@/lib/auth/server";
+import {
+  apiError,
+  apiInternalError,
+  apiSuccess,
+  apiTooManyRequests,
+  LoginRequestSchema,
+  parseAndValidateJson,
+} from "@/lib/api";
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,40 +18,24 @@ export async function POST(req: NextRequest) {
 
     if (!rateCheck.success) {
       const retrySeconds = Math.ceil(rateCheck.retryAfterMs / 1000);
-      return NextResponse.json(
-        {
-          error: `Too many login attempts. Please try again in ${retrySeconds} seconds.`,
-          retryAfterSeconds: retrySeconds,
-        },
-        {
-          status: 429,
-          headers: rateHeaders,
-        }
+      return apiTooManyRequests(
+        `Too many login attempts. Please try again in ${retrySeconds} seconds.`,
+        rateHeaders
       );
     }
 
-    const body = await req.json();
-    const result = await loginUser(body);
+    const validation = await parseAndValidateJson(req, LoginRequestSchema);
+    if (!validation.success) {
+      return validation.response;
+    }
 
+    const result = await loginUser(validation.data);
     if (result.error) {
-      return NextResponse.json(
-        { error: result.error },
-        {
-          status: 400,
-          headers: rateHeaders,
-        }
-      );
+      return apiError(result.error, 400, { headers: rateHeaders });
     }
 
-    return NextResponse.json(
-      { success: true, role: result.role },
-      {
-        status: 200,
-        headers: rateHeaders,
-      }
-    );
+    return apiSuccess({ role: result.role }, 200, rateHeaders);
   } catch (error) {
-    console.error("[api/auth/login] Unexpected error:", error);
-    return NextResponse.json({ error: "Internal server error." }, { status: 500 });
+    return apiInternalError(error, "An unexpected error occurred during login.");
   }
 }

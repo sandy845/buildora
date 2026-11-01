@@ -1,31 +1,52 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth/server";
+import { NextRequest } from "next/server";
 import { prisma, type PrismaTransactionClient } from "@/lib/db/prisma";
 import { recordAudit } from "@/lib/audit";
 import { canAccessProject } from "@/lib/services/shared";
+import {
+  apiForbidden,
+  apiInternalError,
+  apiNotFound,
+  apiSuccess,
+  ClientUpdateApprovalSchema,
+  parseAndValidateJson,
+  requireRouteUser,
+} from "@/lib/api";
 
-const allowedStatuses = ["approved", "rejected", "superseded"] as const;
-
-export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const guard = await requireRouteUser();
+  if (!guard.authorized) {
+    return guard.response;
+  }
+  const user = guard.user;
   const { id } = await params;
 
   try {
-    const body = await request.json();
-    const status = body.status as (typeof allowedStatuses)[number];
-    const comments = typeof body.comments === "string" ? body.comments.trim() : undefined;
-    if (!allowedStatuses.includes(status)) {
-      return NextResponse.json({ error: "Invalid approval status." }, { status: 400 });
+    const validation = await parseAndValidateJson(request, ClientUpdateApprovalSchema);
+    if (!validation.success) {
+      return validation.response;
     }
+
+    const { status, comments } = validation.data;
 
     const approval = await prisma.approval.findUnique({
       where: { id },
-      select: { id: true, projectId: true, project: { select: { customerId: true, name: true } }, status: true },
+      select: {
+        id: true,
+        projectId: true,
+        project: { select: { customerId: true, name: true } },
+        status: true,
+      },
     });
-    if (!approval) return NextResponse.json({ error: "Approval not found." }, { status: 404 });
+
+    if (!approval) {
+      return apiNotFound("Approval request not found.");
+    }
+
     if (!canAccessProject(user, approval.project.customerId)) {
-      return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+      return apiForbidden("You do not have permission to review this approval.");
     }
 
     const updated = await prisma.$transaction(async (tx: PrismaTransactionClient) => {
@@ -34,6 +55,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         data: { status, comments, decidedAt: new Date() },
         select: { id: true, status: true, comments: true, decidedAt: true },
       });
+
       await tx.activityEvent.create({
         data: {
           projectId: approval.projectId,
@@ -44,12 +66,22 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
           description: `Approval ${status} for ${approval.project.name}`,
         },
       });
+
       return result;
     });
-    await recordAudit({ actorId: user.id, projectId: approval.projectId, entityType: "approval", entityId: id, action: `status_${status}`, before: { status: approval.status }, after: updated });
-    return NextResponse.json({ success: true, approval: updated });
+
+    await recordAudit({
+      actorId: user.id,
+      projectId: approval.projectId,
+      entityType: "approval",
+      entityId: id,
+      action: `status_${status}`,
+      before: { status: approval.status },
+      after: updated,
+    });
+
+    return apiSuccess({ approval: updated });
   } catch (error) {
-    console.error("[api/client/approvals] Failed to update approval:", error);
-    return NextResponse.json({ error: "Unable to update approval." }, { status: 500 });
+    return apiInternalError(error, "Unable to update approval.");
   }
 }

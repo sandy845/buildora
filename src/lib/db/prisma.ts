@@ -4,9 +4,14 @@ const globalForPrisma = globalThis as typeof globalThis & {
   buildoraPrisma?: PrismaClient;
 };
 
-const prismaClient = globalForPrisma.buildoraPrisma ?? new PrismaClient();
+const prismaClient =
+  globalForPrisma.buildoraPrisma ??
+  new PrismaClient({
+    log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"],
+  });
 
-if (process.env.NODE_ENV !== "production") {
+// Preserve singleton across serverless container reuse in both dev and production
+if (!globalForPrisma.buildoraPrisma) {
   globalForPrisma.buildoraPrisma = prismaClient;
 }
 

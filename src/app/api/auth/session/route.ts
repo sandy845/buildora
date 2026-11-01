@@ -1,31 +1,32 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { createFirebaseSession } from "@/lib/auth/server";
+import {
+  apiInternalError,
+  apiSuccess,
+  apiUnauthorized,
+  parseAndValidateJson,
+  SessionExchangeRequestSchema,
+} from "@/lib/api";
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const idToken = body?.idToken;
-
-    if (!idToken || typeof idToken !== "string") {
-      return NextResponse.json({ error: "Missing or invalid ID token." }, { status: 400 });
+    const validation = await parseAndValidateJson(request, SessionExchangeRequestSchema);
+    if (!validation.success) {
+      return validation.response;
     }
 
-    const result = await createFirebaseSession(idToken, {
-      name: body.name,
-      email: body.email,
-    });
+    const { idToken, name, email } = validation.data;
+    const result = await createFirebaseSession(idToken, { name, email });
 
     if (!result.success) {
-      return NextResponse.json({ error: result.error || "Authentication failed." }, { status: 401 });
+      return apiUnauthorized(result.error || "Authentication failed. Invalid or expired token.");
     }
 
-    return NextResponse.json({
-      success: true,
+    return apiSuccess({
       role: result.role,
       user: result.user,
     });
   } catch (err: unknown) {
-    console.error("[api/auth/session] Session creation error:", err);
-    return NextResponse.json({ error: "Internal server error." }, { status: 500 });
+    return apiInternalError(err, "Failed to establish authenticated session.");
   }
 }

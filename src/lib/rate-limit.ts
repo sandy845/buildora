@@ -201,6 +201,24 @@ export const authVerificationAttemptLimiter = new RateLimiter({
   windowMs: 15 * 60_000,
 }).startPruning();
 
+/** Password reset requests: max 5 requests per IP per 15 minutes. */
+export const authPasswordResetLimiter = new RateLimiter({
+  limit: 5,
+  windowMs: 15 * 60_000,
+}).startPruning();
+
+/** Storage presign requests: max 30 presign requests per IP per 10 minutes. */
+export const storagePresignLimiter = new RateLimiter({
+  limit: 30,
+  windowMs: 10 * 60_000,
+}).startPruning();
+
+/** Client project messages: max 20 messages per IP per 5 minutes. */
+export const clientMessageLimiter = new RateLimiter({
+  limit: 20,
+  windowMs: 5 * 60_000,
+}).startPruning();
+
 /**
  * Extract the real client IP from a Next.js request or headers context.
  */

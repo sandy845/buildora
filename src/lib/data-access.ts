@@ -17,8 +17,8 @@ const clientNavFallback = [
   { label: "Cost & Payments", href: "/client/dashboard#payments", icon: "card" },
   { label: "Documents", href: "/client/dashboard#documents", icon: "folder" },
   { label: "Design Approvals", href: "/client/dashboard#approvals", icon: "check" },
-  { label: "Messages", href: "/client/dashboard#messages", icon: "message", count: 2 },
-  { label: "Notifications", href: "/client/dashboard#notifications", icon: "bell", count: 3 },
+  { label: "Messages", href: "/client/dashboard#messages", icon: "message" },
+  { label: "Notifications", href: "/client/dashboard#notifications", icon: "bell" },
 ];
 
 const clientStatsFallback = [
@@ -35,8 +35,8 @@ const clientActivityFallback = [] as const;
 const adminNavFallback = [
   { label: "Overview", href: "/admin/dashboard", icon: "grid" },
   { label: "Projects", href: "/admin/dashboard#projects", icon: "building" },
-  { label: "Leads & Enquiries", href: "/admin/dashboard#leads", icon: "user", count: 4 },
-  { label: "Quotations", href: "/admin/dashboard#quotations", icon: "file", count: 2 },
+  { label: "Leads & Enquiries", href: "/admin/dashboard#leads", icon: "user" },
+  { label: "Quotations", href: "/admin/dashboard#quotations", icon: "file" },
   { label: "Finance & Payments", href: "/admin/dashboard#finance", icon: "card" },
   { label: "Client Management", href: "/admin/dashboard#clients", icon: "users" },
   { label: "Project Milestones", href: "/admin/dashboard#milestones", icon: "calendar" },
@@ -252,7 +252,13 @@ async function getAdminDashboardServerSnapshot() {
     const leadList = leads.length > 0 ? leads : [];
 
     return {
-      navItems: adminNavFallback,
+      navItems: adminNavFallback.map((item) => (
+        item.label === "Leads & Enquiries"
+          ? { ...item, count: leadCount || undefined }
+          : item.label === "Quotations"
+            ? { ...item, count: quotationCount || undefined }
+            : item
+      )),
       stats: [
         { label: "Total projects", value: String(projectCount || projectList.length), detail: "Across the portfolio", tone: "neutral" },
         { label: "Active projects", value: String(activeProjectCount), detail: "Currently in motion", tone: "positive" },

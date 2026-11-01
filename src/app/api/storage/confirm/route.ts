@@ -1,19 +1,33 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { revalidatePath } from "next/cache";
-import { getCurrentUser } from "@/lib/auth/server";
 import { prisma } from "@/lib/db/prisma";
 import { DocumentType, DesignAssetType } from "@/lib/types/models";
-import { validateUpload } from "@/lib/storage";
+import { validateUpload, isValidStorageKey } from "@/lib/storage";
 import { canAccessProject } from "@/lib/services/shared";
+import {
+  apiError,
+  apiForbidden,
+  apiInternalError,
+  apiNotFound,
+  apiSuccess,
+  parseAndValidateJson,
+  requireRouteUser,
+  StorageConfirmRequestSchema,
+} from "@/lib/api";
 
 export async function POST(req: NextRequest) {
+  const guard = await requireRouteUser();
+  if (!guard.authorized) {
+    return guard.response;
+  }
+  const user = guard.user;
+
   try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized. Please log in." }, { status: 401 });
+    const validation = await parseAndValidateJson(req, StorageConfirmRequestSchema);
+    if (!validation.success) {
+      return validation.response;
     }
 
-    const body = await req.json();
     const {
       projectId,
       key,
@@ -21,49 +35,40 @@ export async function POST(req: NextRequest) {
       fileUrl,
       fileSizeBytes,
       contentType,
-      category = "document",
-      documentType = "specification",
-      designAssetType = "drawing",
+      category,
+      documentType,
+      designAssetType,
       description,
-    } = body;
+    } = validation.data;
 
-    if (!projectId || !key || !fileName) {
-      return NextResponse.json(
-        { error: "Missing required fields: projectId, key, fileName." },
-        { status: 400 }
-      );
-    }
-
-    // Verify project access
     const project = await prisma.project.findUnique({
       where: { id: projectId },
       select: { id: true, customerId: true, name: true, deletedAt: true },
     });
 
     if (!project || project.deletedAt) {
-      return NextResponse.json({ error: "Project not found." }, { status: 404 });
+      return apiNotFound("Project not found.");
     }
 
     if (!canAccessProject(user, project.customerId)) {
-      return NextResponse.json({ error: "Forbidden. You do not have access to this project." }, { status: 403 });
+      return apiForbidden("You do not have permission to attach documents to this project.");
     }
 
-    if (typeof key !== "string" || !key.startsWith(`projects/${projectId}/`)) {
-      return NextResponse.json({ error: "Invalid storage object key." }, { status: 400 });
+    if (!isValidStorageKey(key, projectId)) {
+      return apiError("Invalid or unsafe storage object key for this project.", 400);
     }
-    if (typeof fileUrl === "string" && fileUrl && !fileUrl.includes(key)) {
-      return NextResponse.json({ error: "File URL does not match the storage object." }, { status: 400 });
+    if (fileUrl && !fileUrl.includes(key)) {
+      return apiError("File URL does not match the storage object key.", 400);
     }
-    if (typeof contentType !== "string" || typeof fileSizeBytes !== "number") {
-      return NextResponse.json({ error: "File metadata is required." }, { status: 400 });
+
+    const uploadValidation = validateUpload(contentType, fileSizeBytes, category, fileName);
+    if (!uploadValidation.valid) {
+      return apiError(uploadValidation.error, 400);
     }
-    const validation = validateUpload(contentType, fileSizeBytes, category === "blueprint" ? "blueprint" : "document", fileName);
-    if (!validation.valid) return NextResponse.json({ error: validation.error }, { status: 400 });
 
     const finalUrl = key;
 
     if (category === "blueprint") {
-      // Validate or map designAssetType
       const validTypes = Object.values(DesignAssetType);
       const assetType: DesignAssetType = validTypes.includes(designAssetType as DesignAssetType)
         ? (designAssetType as DesignAssetType)
@@ -88,7 +93,6 @@ export async function POST(req: NextRequest) {
         include: { versions: true },
       });
 
-      // Log timeline activity event
       await prisma.activityEvent.create({
         data: {
           projectId,
@@ -104,8 +108,7 @@ export async function POST(req: NextRequest) {
       revalidatePath(`/client/projects/${projectId}`);
       revalidatePath(`/admin/dashboard`);
 
-      return NextResponse.json({
-        success: true,
+      return apiSuccess({
         asset: {
           id: designAsset.id,
           name: designAsset.name,
@@ -115,7 +118,6 @@ export async function POST(req: NextRequest) {
         },
       });
     } else {
-      // Document upload
       const validTypes = Object.values(DocumentType);
       const docType: DocumentType = validTypes.includes(documentType as DocumentType)
         ? (documentType as DocumentType)
@@ -140,7 +142,6 @@ export async function POST(req: NextRequest) {
         include: { versions: true },
       });
 
-      // Log timeline activity event
       await prisma.activityEvent.create({
         data: {
           projectId,
@@ -156,8 +157,7 @@ export async function POST(req: NextRequest) {
       revalidatePath(`/client/projects/${projectId}`);
       revalidatePath(`/admin/dashboard`);
 
-      return NextResponse.json({
-        success: true,
+      return apiSuccess({
         document: {
           id: document.id,
           name: document.name,
@@ -168,7 +168,6 @@ export async function POST(req: NextRequest) {
       });
     }
   } catch (error) {
-    console.error("[api/storage/confirm] Unexpected error:", error);
-    return NextResponse.json({ error: "Internal server error." }, { status: 500 });
+    return apiInternalError(error, "Failed to confirm file upload.");
   }
 }

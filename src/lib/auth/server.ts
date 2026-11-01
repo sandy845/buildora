@@ -11,6 +11,12 @@ import { authLoginLimiter, authRegisterLimiter, authVerificationLimiter, getClie
 import { sendPasswordResetEmail, sendVerificationEmail } from "@/lib/email";
 import { getAdminAuth } from "@/lib/firebase/admin";
 import { isFirebaseClientConfigured } from "@/lib/firebase/config";
+import {
+  isSessionTokenRevoked,
+  isUserSessionRevoked,
+  revokeAllUserSessions,
+  revokeSessionToken,
+} from "./revocation";
 import type { UserRole } from "@/lib/types/models";
 
 const scrypt = promisify(scryptCallback);
@@ -19,11 +25,13 @@ const sessionLifetimeSeconds = 60 * 60 * 24 * 7; // 7 days
 
 type AuthRole = UserRole;
 
-type SessionPayload = {
+export type SessionPayload = {
+  sessionId: string;
   userId: string;
   role: AuthRole;
   email?: string;
   name?: string;
+  createdAt: number;
   expiresAt: number;
 };
 
@@ -37,11 +45,12 @@ export type AuthActionState = {
   verificationProvider?: "firebase" | "email";
 };
 
-function allowDevSessionFallback() {
+function allowDevSessionFallback(): boolean {
+  if (process.env.NODE_ENV === "production") return false;
   return process.env.ALLOW_DEV_SESSION_FALLBACK === "1" || process.env.NODE_ENV === "test";
 }
 
-function getAuthSecret() {
+function getAuthSecret(): string {
   const secret = process.env.AUTH_SECRET;
   if (process.env.NODE_ENV === "production" && (!secret || secret.length < 32)) {
     throw new Error("AUTH_SECRET must be configured with at least 32 characters in production.");
@@ -49,31 +58,36 @@ function getAuthSecret() {
   return secret || (allowDevSessionFallback() ? "buildora_test_session_key_32_chars_minimum_length" : "");
 }
 
-function encode(value: string) {
+function encode(value: string): string {
   return Buffer.from(value, "utf8").toString("base64url");
 }
 
-function sign(value: string) {
+function sign(value: string): string {
   return createHmac("sha256", getAuthSecret()).update(value).digest("base64url");
 }
 
-function createSessionToken(payload: SessionPayload) {
+export function createSessionToken(payload: SessionPayload): string {
   const body = encode(JSON.stringify(payload));
   return `${body}.${sign(body)}`;
 }
 
-function readSessionToken(token: string): SessionPayload | null {
+export function readSessionToken(token: string): SessionPayload | null {
   const [body, signature] = token.split(".");
   if (!body || !signature) return null;
 
-  const expectedSignature = sign(body);
-  const actual = Buffer.from(signature);
-  const expected = Buffer.from(expectedSignature);
-  if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) return null;
-
   try {
+    const expectedSignature = sign(body);
+    const actual = Buffer.from(signature);
+    const expected = Buffer.from(expectedSignature);
+    if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) return null;
+
     const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as SessionPayload;
-    if (!payload.userId || !["customer", "admin"].includes(payload.role) || payload.expiresAt <= Date.now()) {
+    if (
+      !payload.userId ||
+      !["customer", "admin"].includes(payload.role) ||
+      !payload.expiresAt ||
+      payload.expiresAt <= Date.now()
+    ) {
       return null;
     }
     return payload;
@@ -82,14 +96,21 @@ function readSessionToken(token: string): SessionPayload | null {
   }
 }
 
-export async function setSession(userId: string, role: AuthRole, email?: string, name?: string) {
+export async function setSession(userId: string, role: AuthRole, email?: string, name?: string): Promise<string> {
+  const sessionId = randomBytes(16).toString("hex");
+  const now = Date.now();
+  const expiresAt = now + sessionLifetimeSeconds * 1000;
+
   const token = createSessionToken({
+    sessionId,
     userId,
     role,
     email,
     name,
-    expiresAt: Date.now() + sessionLifetimeSeconds * 1000,
+    createdAt: now,
+    expiresAt,
   });
+
   const cookieStore = await cookies();
   cookieStore.set(sessionCookieName, token, {
     httpOnly: true,
@@ -98,6 +119,8 @@ export async function setSession(userId: string, role: AuthRole, email?: string,
     path: "/",
     maxAge: sessionLifetimeSeconds,
   });
+
+  return sessionId;
 }
 
 export async function getCurrentUser(): Promise<{
@@ -112,6 +135,16 @@ export async function getCurrentUser(): Promise<{
 
   const session = readSessionToken(token);
   if (!session) return null;
+
+  // Check individual session revocation
+  if (session.sessionId && (await isSessionTokenRevoked(session.sessionId))) {
+    return null;
+  }
+
+  // Check user-wide session revocation (e.g. after password reset)
+  if (session.createdAt && (await isUserSessionRevoked(session.userId, session.createdAt))) {
+    return null;
+  }
 
   try {
     const user = await getUser({ id: session.userId });
@@ -220,8 +253,16 @@ export async function createFirebaseSession(
         console.warn("[firebase-auth] Could not set custom claim:", claimErr);
       }
     }
-  } else if (existing.accountStatus !== "active" || existing.deletedAt) {
+  } else if (existing.deletedAt) {
     return { success: false, error: "This account is not available." };
+  } else if (existing.accountStatus !== "active") {
+    return {
+      success: false,
+      error:
+        existing.accountStatus === "suspended"
+          ? "This account has been suspended. Please contact support."
+          : "This account is deactivated.",
+    };
   } else if (name && (!existing.name || existing.name === "Buildora Client" || existing.name === "Demo Customer" || existing.name === "Buildora Member")) {
     try {
       await updateUser({ id: existing.id }, { name });
@@ -245,7 +286,6 @@ export async function createFirebaseSession(
 }
 
 export async function registerUser(values: Record<string, unknown>): Promise<AuthActionState> {
-  // Rate limiting per IP
   try {
     const headersList = await headers();
     const ip = getClientIp(headersList);
@@ -317,7 +357,7 @@ export async function registerUser(values: Record<string, unknown>): Promise<Aut
       normalizedEmail: email,
       phone,
       passwordHash,
-      role: "customer",
+      role: "customer", // Strict: registration NEVER assigns admin role
       accountStatus: "active",
     });
     if (adminAuth && firebaseUid) {
@@ -326,12 +366,15 @@ export async function registerUser(values: Record<string, unknown>): Promise<Aut
 
     if (!firebaseEmailAuthEnabled) {
       const rawToken = generateVerificationOtp();
-      await prisma.emailVerificationToken.create({ data: {
-        userId: created.id,
-        tokenHash: createHash("sha256").update(rawToken).digest("hex"),
-        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
-        usedAt: null,
-      } });
+      await prisma.emailVerificationToken.create({
+        data: {
+          userId: created.id,
+          tokenHash: createHash("sha256").update(rawToken).digest("hex"),
+          expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+          usedAt: null,
+          attempts: 0,
+        },
+      });
       emailResult = await sendVerificationEmail(email, name, rawToken);
     }
   } catch (error) {
@@ -339,7 +382,6 @@ export async function registerUser(values: Record<string, unknown>): Promise<Aut
     return { error: "Registration could not be completed. Please check the deployment configuration and try again." };
   }
   if (!firebaseEmailAuthEnabled && emailResult && !emailResult.sent) {
-    // If email is not configured in local dev, allow automatic activation so user can log in
     if (process.env.NODE_ENV !== "production") {
       await updateUser({ id: created.id }, { emailVerifiedAt: new Date() });
       return { success: true };
@@ -375,12 +417,15 @@ export async function resendVerificationEmail(emailValue: string): Promise<AuthA
   const tokenHash = createHash("sha256").update(rawToken).digest("hex");
   let result: Awaited<ReturnType<typeof sendVerificationEmail>>;
   try {
-    await prisma.emailVerificationToken.create({ data: {
-      userId: user.id,
-      tokenHash,
-      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
-      usedAt: null,
-    } });
+    await prisma.emailVerificationToken.create({
+      data: {
+        userId: user.id,
+        tokenHash,
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+        usedAt: null,
+        attempts: 0,
+      },
+    });
     result = await sendVerificationEmail(user.email, user.name, rawToken);
   } catch (error) {
     console.error("[auth/verification] Failed to create token or send email:", error);
@@ -393,17 +438,20 @@ export async function resendVerificationEmail(emailValue: string): Promise<AuthA
   return { success: true };
 }
 
-async function verifyPassword(password: string, storedHash: string | null | undefined) {
+export async function verifyPassword(password: string, storedHash: string | null | undefined): Promise<boolean> {
   if (!storedHash?.startsWith("scrypt:")) return false;
   const [, salt, expectedHex] = storedHash.split(":");
   if (!salt || !expectedHex) return false;
-  const actual = (await scrypt(password, salt, 64)) as Buffer;
-  const expected = Buffer.from(expectedHex, "hex");
-  return actual.length === expected.length && timingSafeEqual(actual, expected);
+  try {
+    const actual = (await scrypt(password, salt, 64)) as Buffer;
+    const expected = Buffer.from(expectedHex, "hex");
+    return actual.length === expected.length && timingSafeEqual(actual, expected);
+  } catch {
+    return false;
+  }
 }
 
 export async function loginUser(values: Record<string, unknown>): Promise<AuthActionState & { role?: AuthRole }> {
-  // Rate limiting per IP
   try {
     const headersList = await headers();
     const ip = getClientIp(headersList);
@@ -431,8 +479,19 @@ export async function loginUser(values: Record<string, unknown>): Promise<AuthAc
     console.error("[auth/login] Failed to query the user store:", error);
     return { error: "Sign-in is temporarily unavailable because account storage could not be reached." };
   }
-  if (!user || user.accountStatus !== "active" || user.deletedAt) {
+
+  if (!user || user.deletedAt) {
     return { error: "Invalid email or password." };
+  }
+
+  // Handle suspended or deactivated accounts
+  if (user.accountStatus !== "active") {
+    return {
+      error:
+        user.accountStatus === "suspended"
+          ? "This account has been suspended. Please contact Buildora support."
+          : "This account has been deactivated.",
+    };
   }
 
   // Check email verification status
@@ -462,33 +521,49 @@ export async function verifyEmailToken(rawToken: string): Promise<boolean> {
   if (!/^\d{6}$/.test(otp)) return false;
   const tokenHash = createHash("sha256").update(otp).digest("hex");
 
-  const tokenDoc = await prisma.emailVerificationToken.findFirst({ where: { tokenHash } });
+  const tokenDoc = await prisma.emailVerificationToken.findFirst({
+    where: { tokenHash },
+  });
 
   if (!tokenDoc || tokenDoc.usedAt || new Date(tokenDoc.expiresAt) <= new Date()) {
     return false;
   }
 
+  // Guard against brute force OTP guessing: lock token after 5 attempts
+  if (tokenDoc.attempts && tokenDoc.attempts >= 5) {
+    return false;
+  }
+
   await prisma.$transaction([
-    prisma.emailVerificationToken.update({ where: { id: tokenDoc.id }, data: { usedAt: new Date() } }),
-    prisma.user.update({ where: { id: tokenDoc.userId }, data: { emailVerifiedAt: new Date() } }),
+    prisma.emailVerificationToken.update({
+      where: { id: tokenDoc.id },
+      data: { usedAt: new Date() },
+    }),
+    prisma.user.update({
+      where: { id: tokenDoc.userId },
+      data: { emailVerifiedAt: new Date() },
+    }),
   ]);
+
   return true;
 }
 
 export async function requestPasswordReset(email: string): Promise<void> {
   const normalizedEmail = email.trim().toLowerCase();
   const user = await getUser({ normalizedEmail });
-  if (!user || user.deletedAt) return;
+  if (!user || user.deletedAt || user.accountStatus !== "active") return;
 
   const rawToken = randomBytes(32).toString("hex");
   const tokenHash = createHash("sha256").update(rawToken).digest("hex");
 
-  await prisma.passwordResetToken.create({ data: {
-    userId: user.id,
-    tokenHash,
-    expiresAt: new Date(Date.now() + 60 * 60 * 1000),
-    usedAt: null,
-  } });
+  await prisma.passwordResetToken.create({
+    data: {
+      userId: user.id,
+      tokenHash,
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      usedAt: null,
+    },
+  });
 
   const result = await sendPasswordResetEmail(user.email, user.name, rawToken);
   if (!result.sent) {
@@ -511,6 +586,9 @@ export async function resetPassword(rawToken: string, password: string): Promise
   await prisma.passwordResetToken.update({ where: { id: tokenDoc.id }, data: { usedAt: new Date() } });
   await updateUser({ id: tokenDoc.userId }, { passwordHash });
 
+  // Invalidate all existing sessions for this user on all devices
+  await revokeAllUserSessions(tokenDoc.userId);
+
   // Update in Firebase Auth if available
   const adminAuth = getAdminAuth();
   if (adminAuth) {
@@ -526,5 +604,14 @@ export async function resetPassword(rawToken: string, password: string): Promise
 
 export async function logoutUser(): Promise<void> {
   const cookieStore = await cookies();
+  const token = cookieStore.get(sessionCookieName)?.value;
+
+  if (token) {
+    const session = readSessionToken(token);
+    if (session?.sessionId && session.expiresAt) {
+      await revokeSessionToken(session.sessionId, session.expiresAt);
+    }
+  }
+
   cookieStore.delete(sessionCookieName);
 }

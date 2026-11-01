@@ -1,49 +1,67 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUser, setSession } from "@/lib/auth/server";
+import { NextRequest } from "next/server";
+import { setSession } from "@/lib/auth/server";
 import { getUser, updateUser } from "@/lib/db/data-access";
+import {
+  apiError,
+  apiInternalError,
+  apiNotFound,
+  apiSuccess,
+  ClientUpdateProfileSchema,
+  parseAndValidateJson,
+  requireRouteUser,
+} from "@/lib/api";
 
 export async function GET() {
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-  return NextResponse.json({ name: user.name, email: user.email });
+  const guard = await requireRouteUser();
+  if (!guard.authorized) {
+    return guard.response;
+  }
+
+  return apiSuccess({
+    name: guard.user.name,
+    email: guard.user.email,
+  });
 }
 
 export async function PATCH(request: NextRequest) {
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  const guard = await requireRouteUser();
+  if (!guard.authorized) {
+    return guard.response;
+  }
+  const user = guard.user;
 
   try {
-    let body: unknown;
-    try {
-      body = await request.json();
-    } catch {
-      return NextResponse.json({ error: "Request body must be valid JSON." }, { status: 400 });
+    const validation = await parseAndValidateJson(request, ClientUpdateProfileSchema);
+    if (!validation.success) {
+      return validation.response;
     }
-    if (typeof body !== "object" || body === null || Array.isArray(body)) {
-      return NextResponse.json({ error: "Request body must be a JSON object." }, { status: 400 });
-    }
-    if ("email" in body) {
-      return NextResponse.json({ error: "Email addresses cannot be changed from this page." }, { status: 400 });
-    }
-    const name = "name" in body && typeof body.name === "string" ? body.name.trim() : "";
 
-    if (name.length < 2 || name.length > 160) {
-      return NextResponse.json({ error: "Name must be between 2 and 160 characters." }, { status: 400 });
+    const { name, phone } = validation.data;
+    if (!name && !phone) {
+      return apiError("Please provide at least one profile field to update.", 400);
     }
 
     const account = await getUser({ id: user.id });
     if (!account || account.deletedAt || account.accountStatus !== "active") {
-      return NextResponse.json({ error: "Your account profile could not be found. Please sign in again." }, { status: 404 });
+      return apiNotFound("Your account profile could not be found. Please sign in again.");
     }
 
-    const updated = await updateUser({ id: user.id }, { name });
+    const updateData: { name?: string; phone?: string } = {};
+    if (name) updateData.name = name;
+    if (phone) updateData.phone = phone;
 
-    await setSession(user.id, user.role, account.email, name);
+    const updated = await updateUser({ id: user.id }, updateData);
 
-    return NextResponse.json({ success: true, account: { name: updated.name, email: account.email } });
+    await setSession(user.id, user.role, account.email, updated.name || user.name);
+
+    return apiSuccess({
+      account: {
+        name: updated.name,
+        email: account.email,
+        phone: updated.phone,
+      },
+    });
   } catch (error) {
-    console.error("[api/client/profile] Failed to update profile:", error);
-    const message = error instanceof Error ? error.message : "Unable to update your profile.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return apiInternalError(error, "Unable to update your profile.");
   }
 }

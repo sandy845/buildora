@@ -1,49 +1,100 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth/server";
+import { NextRequest } from "next/server";
 import { prisma, type PrismaTransactionClient } from "@/lib/db/prisma";
+import { canAccessProject } from "@/lib/services/shared";
+import {
+  apiForbidden,
+  apiInternalError,
+  apiNotFound,
+  apiSuccess,
+  apiTooManyRequests,
+  ClientSendMessageSchema,
+  parseAndValidateJson,
+  requireRouteUser,
+} from "@/lib/api";
+import {
+  clientMessageLimiter,
+  getClientIp,
+  getRateLimitHeaders,
+} from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  const guard = await requireRouteUser();
+  if (!guard.authorized) {
+    return guard.response;
+  }
+  const user = guard.user;
 
   try {
-    const body = await request.json();
-    const projectId = typeof body.projectId === "string" ? body.projectId : "";
-    const conversationId = typeof body.conversationId === "string" ? body.conversationId : "";
-    const messageBody = typeof body.body === "string" ? body.body.trim() : "";
-    if (!projectId || !messageBody || messageBody.length > 5000) {
-      return NextResponse.json({ error: "Project and message text are required." }, { status: 400 });
+    const ip = getClientIp(request.headers);
+    const rateCheck = await clientMessageLimiter.checkAsync(`${ip}:${user.id}`);
+    const rateHeaders = getRateLimitHeaders(rateCheck, clientMessageLimiter.limit);
+
+    if (!rateCheck.success) {
+      const retrySeconds = Math.ceil(rateCheck.retryAfterMs / 1000);
+      return apiTooManyRequests(
+        `You are sending messages too quickly. Please wait ${retrySeconds} seconds.`,
+        rateHeaders
+      );
+    }
+    const validation = await parseAndValidateJson(request, ClientSendMessageSchema);
+    if (!validation.success) {
+      return validation.response;
     }
 
+    const { projectId, conversationId, body: messageBody } = validation.data;
+
     const project = await prisma.project.findFirst({
-      where: { id: projectId, deletedAt: null, ...(user.role === "admin" ? {} : { customerId: user.id }) },
+      where: { id: projectId, deletedAt: null },
       select: { id: true, name: true, customerId: true },
     });
-    if (!project) return NextResponse.json({ error: "Project not found." }, { status: 404 });
+
+    if (!project) {
+      return apiNotFound("Project not found.");
+    }
+
+    if (!canAccessProject(user, project.customerId)) {
+      return apiForbidden("You do not have permission to post messages to this project.");
+    }
 
     const conversation = conversationId
       ? await prisma.conversation.findFirst({ where: { id: conversationId, projectId } })
-      : await prisma.conversation.create({ data: { projectId, type: "project", subject: `${project.name} updates` } });
-    if (!conversation) return NextResponse.json({ error: "Conversation not found." }, { status: 404 });
+      : await prisma.conversation.create({
+          data: { projectId, type: "project", subject: `${project.name} updates` },
+        });
+
+    if (!conversation) {
+      return apiNotFound("Conversation not found.");
+    }
 
     const result = await prisma.$transaction(async (tx: PrismaTransactionClient) => {
       const message = await tx.message.create({
         data: { conversationId: conversation.id, senderId: user.id, body: messageBody },
         select: { id: true, body: true, sentAt: true, conversationId: true },
       });
+
       if (user.role === "customer") {
-        const admins = await tx.user.findMany({ where: { role: "admin", accountStatus: "active", deletedAt: null }, select: { id: true } });
+        const admins = await tx.user.findMany({
+          where: { role: "admin", accountStatus: "active", deletedAt: null },
+          select: { id: true },
+        });
         if (admins.length) {
           await tx.notification.createMany({
-            data: admins.map((admin: { id: string }) => ({ userId: admin.id, projectId, type: "message" as const, title: "New project message", body: `${user.name} sent a new message in ${project.name}.` })),
+            data: admins.map((admin: { id: string }) => ({
+              userId: admin.id,
+              projectId,
+              type: "message" as const,
+              title: "New project message",
+              body: `${user.name} sent a new message in ${project.name}.`,
+            })),
           });
         }
       }
+
       return message;
     });
-    return NextResponse.json({ success: true, message: result });
+
+    return apiSuccess({ message: result });
   } catch (error) {
-    console.error("[api/client/messages] Failed to send message:", error);
-    return NextResponse.json({ error: "Unable to send message." }, { status: 500 });
+    return apiInternalError(error, "Unable to send message.");
   }
 }

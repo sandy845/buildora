@@ -44,6 +44,37 @@ export type PresignedDownloadResult =
   | { error: string };
 
 // ---------------------------------------------------------------------------
+// Security constants
+// ---------------------------------------------------------------------------
+
+/**
+ * Blocked file extensions — regardless of MIME type, these are never accepted.
+ * This covers executables, scripts, server-side code and dangerous archive payloads.
+ */
+const BLOCKED_EXTENSIONS = new Set([
+  "exe", "bat", "cmd", "com", "msi", "vbs", "vbe", "js", "jse", "wsf", "wsh",
+  "ps1", "ps2", "psc1", "psc2", "sh", "bash", "zsh", "fish", "csh",
+  "php", "php3", "php4", "php5", "php7", "phtml", "phar",
+  "asp", "aspx", "cshtml", "vbhtml",
+  "py", "rb", "pl", "lua", "go",
+  "jar", "war", "ear",
+  "scr", "pif", "application", "gadget", "hta",
+  "reg", "inf",
+  "lnk", "url",
+]);
+
+/**
+ * Maximum allowed presigned upload URL lifetime (15 minutes).
+ * Callers cannot request longer-lived upload tokens.
+ */
+export const MAX_UPLOAD_EXPIRY_SECONDS = 900;
+
+/**
+ * Maximum allowed presigned download URL lifetime (1 hour).
+ */
+export const MAX_DOWNLOAD_EXPIRY_SECONDS = 3600;
+
+// ---------------------------------------------------------------------------
 // Config helpers
 // ---------------------------------------------------------------------------
 
@@ -139,18 +170,21 @@ function deriveSigningKey(secretKey: string, date: string, region: string, servi
  * Generate a presigned PUT URL. The client can use this to upload a file
  * directly to S3/R2 without going through our server.
  *
- * @param key          - Object key in the bucket, e.g. "projects/abc123/contract.pdf"
- * @param contentType  - MIME type of the file, e.g. "application/pdf"
- * @param expiresInSeconds - How long the URL is valid (default 15 minutes)
+ * @param key              - Object key in the bucket, e.g. "projects/abc123/contract.pdf"
+ * @param contentType      - MIME type of the file, e.g. "application/pdf"
+ * @param expiresInSeconds - How long the URL is valid (max MAX_UPLOAD_EXPIRY_SECONDS = 15 min)
  */
 export function generatePresignedUploadUrl(
   key: string,
   contentType: string,
-  expiresInSeconds = 900,
+  expiresInSeconds = MAX_UPLOAD_EXPIRY_SECONDS,
 ): PresignedUploadResult {
+  // Enforce maximum expiry ceiling — callers cannot bypass this.
+  const clampedExpiry = Math.min(Math.max(1, expiresInSeconds), MAX_UPLOAD_EXPIRY_SECONDS);
+
   const cfg = getStorageConfig();
   const now = new Date();
-  const expiresAt = now.getTime() + expiresInSeconds * 1000;
+  const expiresAt = now.getTime() + clampedExpiry * 1000;
 
   // Development / test fallback when S3 / R2 is not configured
   if (!cfg && isMockStorageAllowed()) {
@@ -174,7 +208,7 @@ export function generatePresignedUploadUrl(
     "X-Amz-Algorithm": "AWS4-HMAC-SHA256",
     "X-Amz-Credential": credential,
     "X-Amz-Date": dateTimeStr,
-    "X-Amz-Expires": String(expiresInSeconds),
+    "X-Amz-Expires": String(clampedExpiry),
     "X-Amz-SignedHeaders": "content-type;host",
   });
 
@@ -210,14 +244,20 @@ export function generatePresignedUploadUrl(
 
 /**
  * Generate a presigned GET URL for private file downloads.
+ *
+ * @param key              - Object key in the bucket
+ * @param expiresInSeconds - How long the URL is valid (max MAX_DOWNLOAD_EXPIRY_SECONDS = 1 hour)
  */
 export function generatePresignedDownloadUrl(
   key: string,
-  expiresInSeconds = 3600,
+  expiresInSeconds = MAX_DOWNLOAD_EXPIRY_SECONDS,
 ): PresignedDownloadResult {
+  // Enforce maximum expiry ceiling.
+  const clampedExpiry = Math.min(Math.max(1, expiresInSeconds), MAX_DOWNLOAD_EXPIRY_SECONDS);
+
   const cfg = getStorageConfig();
   const now = new Date();
-  const expiresAt = now.getTime() + expiresInSeconds * 1000;
+  const expiresAt = now.getTime() + clampedExpiry * 1000;
 
   if (!cfg && isMockStorageAllowed()) {
     const mockBase = process.env.NEXT_PUBLIC_APP_URL || "";
@@ -239,7 +279,7 @@ export function generatePresignedDownloadUrl(
     "X-Amz-Algorithm": "AWS4-HMAC-SHA256",
     "X-Amz-Credential": credential,
     "X-Amz-Date": dateTimeStr,
-    "X-Amz-Expires": String(expiresInSeconds),
+    "X-Amz-Expires": String(clampedExpiry),
     "X-Amz-SignedHeaders": "host",
   });
 
@@ -277,23 +317,90 @@ export function generatePresignedDownloadUrl(
 // ---------------------------------------------------------------------------
 
 /**
+ * Extract and validate the file extension from a filename.
+ * Returns the lowercase extension (without leading dot), or null if the
+ * extension is blocked or the filename has no meaningful extension.
+ */
+export function extractSafeExtension(filename: string): string | null {
+  const cleanName = filename.trim();
+  // Dotfiles (.htaccess, .env, etc.) or extensionless files
+  if (cleanName.startsWith(".") || !cleanName.includes(".")) return null;
+  const parts = cleanName.split(".");
+  if (parts.length < 2) return null; // no extension
+  const ext = parts[parts.length - 1]!.toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (!ext || ext.length > 10) return null; // empty or suspiciously long
+  if (BLOCKED_EXTENSIONS.has(ext)) return null; // known-dangerous extension
+  return ext;
+}
+
+/**
  * Build a safe, namespaced object key.
- * Example: buildObjectKey("projects", "abc123", "contract.pdf")
- *   → "projects/abc123/contract-1234567890.pdf"
+ *
+ * - Rejects filenames with no safe extension.
+ * - Rejects blocked extensions (executables, scripts, etc.).
+ * - Strips path-traversal sequences from all components.
+ * - Produces deterministic, collision-resistant keys.
+ *
+ * @param namespace - e.g. "projects/proj-abc123"
+ * @param subfolder - e.g. "documents" | "blueprints"
+ * @param filename - Original filename from the client
+ * @returns Safe object key, or throws if the filename is rejected.
  */
 export function buildObjectKey(
   namespace: string,
-  entityId: string,
+  subfolder: string,
   filename: string,
 ): string {
-  const ext = filename.includes(".") ? filename.split(".").pop()! : "bin";
-  const baseName = filename.includes(".") ? filename.substring(0, filename.lastIndexOf(".")) : filename;
+  if (namespace.includes("..") || subfolder.includes("..") || filename.includes("..")) {
+    throw new Error("Path traversal sequences are not permitted.");
+  }
+  if (filename.includes("/") || filename.includes("\\")) {
+    throw new Error("Filename must not contain path separators.");
+  }
+
+  // Sanitize namespace and subfolder — strip invalid characters
+  const safeNamespace = namespace
+    .replace(/[^a-z0-9\-_/]/gi, "-")
+    .replace(/\/+/g, "/")
+    .replace(/^\/|\/$/g, "");
+
+  const safeSubfolder = subfolder
+    .replace(/[^a-z0-9\-_]/gi, "-");
+
+  const ext = extractSafeExtension(filename);
+  if (!ext) {
+    throw new Error(`File extension is missing or not permitted for upload.`);
+  }
+
+  const baseName = filename.substring(0, filename.lastIndexOf("."));
   const safeName = baseName
     .replace(/[^a-z0-9.\-_]/gi, "-")
     .replace(/-+/g, "-")
-    .toLowerCase();
+    .toLowerCase()
+    .slice(0, 80); // Limit base name length
+
   const timestamp = Date.now();
-  return `${namespace}/${entityId}/${safeName}-${timestamp}.${ext}`.replace(/\/\/+/g, "/");
+  const key = `${safeNamespace}/${safeSubfolder}/${safeName}-${timestamp}.${ext}`;
+  // Collapse any double-slashes that may arise from empty components
+  return key.replace(/\/\/+/g, "/");
+}
+
+/**
+ * Validates that an object key is safely scoped to a specific project.
+ * Returns true only if the key begins with "projects/<projectId>/" with no
+ * path-traversal sequences and a safe file extension.
+ */
+export function isValidStorageKey(key: string, projectId: string): boolean {
+  if (!key || !projectId) return false;
+  // Reject path traversal anywhere in the key
+  if (key.includes("..") || key.includes("//")) return false;
+  // Must be scoped to this exact project
+  const expectedPrefix = `projects/${projectId}/`;
+  if (!key.startsWith(expectedPrefix)) return false;
+  // Must have a safe extension
+  const filename = key.split("/").pop() ?? "";
+  const ext = extractSafeExtension(filename);
+  return ext !== null;
 }
 
 // ---------------------------------------------------------------------------
@@ -348,6 +455,18 @@ export function validateUpload(
   allowType: "document" | "blueprint" | "image",
   fileName?: string,
 ): { valid: true } | { valid: false; error: string } {
+  // Block dangerous file extensions regardless of declared MIME type
+  if (fileName) {
+    const ext = extractSafeExtension(fileName);
+    if (ext === null) {
+      const rawExt = fileName.includes(".") ? fileName.split(".").pop()?.toLowerCase() : "(none)";
+      return {
+        valid: false,
+        error: `File extension .${rawExt} is not permitted. Only safe document and blueprint formats are accepted.`,
+      };
+    }
+  }
+
   let allowedSet: Set<string>;
   let maxSize: number;
 

@@ -1,33 +1,77 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth/server";
+import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { recordAudit } from "@/lib/audit";
+import {
+  AdminCreateQuotationSchema,
+  apiInternalError,
+  apiNotFound,
+  apiSuccess,
+  parseAndValidateJson,
+  requireAdminRoute,
+} from "@/lib/api";
 
 export async function POST(request: NextRequest) {
-  const user = await getCurrentUser();
-  if (user?.role !== "admin") return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+  const guard = await requireAdminRoute();
+  if (!guard.authorized) {
+    return guard.response;
+  }
+  const user = guard.user;
+
   try {
-    const body = await request.json();
-    const projectId = typeof body.projectId === "string" ? body.projectId : "";
-    const quotationNumber = typeof body.quotationNumber === "string" ? body.quotationNumber.trim() : "";
-    const subtotal = Number(body.subtotal);
-    const tax = Number(body.tax ?? 0);
-    if (!projectId || !quotationNumber || !Number.isFinite(subtotal) || subtotal < 0 || !Number.isFinite(tax) || tax < 0) {
-      return NextResponse.json({ error: "Project, quotation number, subtotal, and tax are required." }, { status: 400 });
+    const validation = await parseAndValidateJson(request, AdminCreateQuotationSchema);
+    if (!validation.success) {
+      return validation.response;
     }
-    const project = await prisma.project.findFirst({ where: { id: projectId, deletedAt: null }, select: { id: true, customerId: true, name: true } });
-    if (!project) return NextResponse.json({ error: "Project not found." }, { status: 404 });
+
+    const { projectId, subtotal, tax = 0, total, notes, validUntil } = validation.data;
+    const quotationNumber =
+      validation.data.quotationNumber || `QT-${Date.now().toString().slice(-6)}`;
+
+    const project = await prisma.project.findFirst({
+      where: { id: projectId, deletedAt: null },
+      select: { id: true, customerId: true, name: true },
+    });
+
+    if (!project) {
+      return apiNotFound("Project not found.");
+    }
+
     const quotation = await prisma.quotation.create({
-      data: { projectId, createdById: user.id, quotationNumber, subtotal, tax, total: subtotal + tax, status: "draft" },
+      data: {
+        projectId,
+        createdById: user.id,
+        quotationNumber,
+        subtotal,
+        tax,
+        total: total || subtotal + tax,
+        status: "draft",
+        notes,
+        validUntil: validUntil ? new Date(validUntil) : undefined,
+      },
       select: { id: true, quotationNumber: true, status: true, total: true },
     });
-    await recordAudit({ actorId: user.id, projectId, entityType: "quotation", entityId: quotation.id, action: "created", after: quotation });
-    await prisma.notification.create({
-      data: { userId: project.customerId, projectId, type: "approval_required", title: "Quotation ready", body: `A new quotation is available for ${project.name}.` },
+
+    await recordAudit({
+      actorId: user.id,
+      projectId,
+      entityType: "quotation",
+      entityId: quotation.id,
+      action: "created",
+      after: quotation,
     });
-    return NextResponse.json({ success: true, quotation }, { status: 201 });
+
+    await prisma.notification.create({
+      data: {
+        userId: project.customerId,
+        projectId,
+        type: "approval_required",
+        title: "Quotation ready",
+        body: `A new quotation is available for ${project.name}.`,
+      },
+    });
+
+    return apiSuccess({ quotation }, 201);
   } catch (error) {
-    console.error("[api/admin/quotations] Failed to create quotation:", error);
-    return NextResponse.json({ error: "Unable to create quotation." }, { status: 500 });
+    return apiInternalError(error, "Unable to create quotation.");
   }
 }

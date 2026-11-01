@@ -1,23 +1,37 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth/server";
+import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { sendApprovalReminderEmail } from "@/lib/email";
+import {
+  apiError,
+  apiForbidden,
+  apiInternalError,
+  apiNotFound,
+  apiSuccess,
+  IdSchema,
+  parseAndValidateJson,
+  requireRouteUser,
+} from "@/lib/api";
+import { z } from "zod";
+
+const ApprovalRemindSchema = z.object({
+  approvalId: IdSchema,
+});
 
 export async function POST(req: NextRequest) {
+  const guard = await requireRouteUser();
+  if (!guard.authorized) {
+    return guard.response;
+  }
+  const user = guard.user;
+
   try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+    const validation = await parseAndValidateJson(req, ApprovalRemindSchema);
+    if (!validation.success) {
+      return validation.response;
     }
 
-    const body = await req.json();
-    const { approvalId } = body;
+    const { approvalId } = validation.data;
 
-    if (!approvalId) {
-      return NextResponse.json({ error: "Missing approvalId." }, { status: 400 });
-    }
-
-    // Load approval with project and customer details
     const approval = await prisma.approval.findUnique({
       where: { id: approvalId },
       include: {
@@ -36,30 +50,32 @@ export async function POST(req: NextRequest) {
     });
 
     if (!approval || approval.status !== "pending") {
-      return NextResponse.json(
-        { error: "Approval not found or already decided." },
-        { status: 404 }
-      );
+      return apiNotFound("Approval request not found or already decided.");
     }
 
-    // Only admin or project customer can trigger reminders
     if (user.role !== "admin" && user.id !== approval.project.customerId) {
-      return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+      return apiForbidden("You do not have permission to trigger reminders for this approval.");
     }
 
     const recipient = approval.project.customer;
     if (!recipient || !recipient.email) {
-      return NextResponse.json({ error: "Project customer has no email address." }, { status: 400 });
+      return apiError("Project customer has no valid email address.", 400);
     }
 
     const approvalTitle =
       approval.document?.name ||
       approval.designAsset?.name ||
       approval.milestone?.name ||
-      (approval.quotation ? `Quotation #${approval.quotation.quotationNumber}` : `${approval.targetType} approval`);
+      (approval.quotation
+        ? `Quotation #${approval.quotation.quotationNumber}`
+        : `${approval.targetType} approval`);
 
     const dueDate = approval.milestone?.dueDate
-      ? new Date(approval.milestone.dueDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+      ? new Date(approval.milestone.dueDate).toLocaleDateString("en-GB", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        })
       : undefined;
 
     const emailResult = await sendApprovalReminderEmail({
@@ -73,7 +89,6 @@ export async function POST(req: NextRequest) {
       reviewUrl: `${process.env.NEXT_PUBLIC_APP_URL || ""}/client/projects/${approval.projectId}#approvals`,
     });
 
-    // Record activity event
     await prisma.activityEvent.create({
       data: {
         projectId: approval.projectId,
@@ -85,13 +100,11 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({
-      success: true,
+    return apiSuccess({
       emailResult,
       sentTo: recipient.email,
     });
   } catch (error) {
-    console.error("[api/approvals/remind] Unexpected error:", error);
-    return NextResponse.json({ error: "Internal server error." }, { status: 500 });
+    return apiInternalError(error, "Failed to send approval reminder.");
   }
 }

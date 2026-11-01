@@ -1,5 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth/server";
+import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { canAccessProject } from "@/lib/services/shared";
 import {
@@ -8,79 +7,95 @@ import {
   isMockStorageAllowed,
   validateUpload,
 } from "@/lib/storage";
+import {
+  apiError,
+  apiForbidden,
+  apiInternalError,
+  apiNotFound,
+  apiSuccess,
+  apiTooManyRequests,
+  parseAndValidateJson,
+  requireRouteUser,
+  StoragePresignRequestSchema,
+} from "@/lib/api";
+import {
+  getClientIp,
+  getRateLimitHeaders,
+  storagePresignLimiter,
+} from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
+  const guard = await requireRouteUser();
+  if (!guard.authorized) {
+    return guard.response;
+  }
+  const user = guard.user;
+
   try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized. Please log in." }, { status: 401 });
-    }
+    const ip = getClientIp(req.headers);
+    const rateCheck = await storagePresignLimiter.checkAsync(`${ip}:${user.id}`);
+    const rateHeaders = getRateLimitHeaders(rateCheck, storagePresignLimiter.limit);
 
-    const body = await req.json();
-    const {
-      projectId,
-      fileName,
-      contentType,
-      fileSizeBytes,
-      category = "document",
-    } = body;
-
-    if (!projectId || !fileName || !contentType || typeof fileSizeBytes !== "number") {
-      return NextResponse.json(
-        { error: "Missing required fields: projectId, fileName, contentType, fileSizeBytes." },
-        { status: 400 }
+    if (!rateCheck.success) {
+      const retrySeconds = Math.ceil(rateCheck.retryAfterMs / 1000);
+      return apiTooManyRequests(
+        `Too many upload requests. Please wait ${retrySeconds} seconds before requesting another upload URL.`,
+        rateHeaders
       );
     }
-
-    if (category !== "document" && category !== "blueprint") {
-      return NextResponse.json(
-        { error: "Invalid category. Must be 'document' or 'blueprint'." },
-        { status: 400 }
-      );
+    const validation = await parseAndValidateJson(req, StoragePresignRequestSchema);
+    if (!validation.success) {
+      return validation.response;
     }
 
-    // Verify project access
+    const { projectId, fileName, contentType, fileSizeBytes, category } = validation.data;
+
     const project = await prisma.project.findUnique({
       where: { id: projectId },
       select: { id: true, customerId: true, deletedAt: true },
     });
 
     if (!project || project.deletedAt) {
-      return NextResponse.json({ error: "Project not found." }, { status: 404 });
+      return apiNotFound("Project not found.");
     }
 
     if (!canAccessProject(user, project.customerId)) {
-      return NextResponse.json({ error: "Forbidden. You do not have access to this project." }, { status: 403 });
+      return apiForbidden("You do not have access to upload documents to this project.");
     }
 
-    // Validate MIME type and file size limits
-    const validation = validateUpload(contentType, fileSizeBytes, category, fileName);
-    if (!validation.valid) {
-      return NextResponse.json({ error: validation.error }, { status: 400 });
+    const uploadValidation = validateUpload(contentType, fileSizeBytes, category, fileName);
+    if (!uploadValidation.valid) {
+      return apiError(uploadValidation.error, 400);
     }
 
-    // Build unique object key
     const subfolder = category === "blueprint" ? "blueprints" : "documents";
-    const objectKey = buildObjectKey(`projects/${projectId}`, subfolder, fileName);
+    let objectKey: string;
+    try {
+      objectKey = buildObjectKey(`projects/${projectId}`, subfolder, fileName);
+    } catch (keyError) {
+      return apiError(
+        keyError instanceof Error ? keyError.message : "File name is not permitted.",
+        400
+      );
+    }
 
-    // Generate AWS S3 / Cloudflare R2 presigned PUT URL
     const result = generatePresignedUploadUrl(objectKey, contentType);
     if ("isMock" in result && result.isMock && !isMockStorageAllowed()) {
-      return NextResponse.json({ error: "Storage is not configured." }, { status: 503 });
+      return apiError("Storage service is not configured for production uploads.", 503, {
+        code: "STORAGE_UNAVAILABLE",
+      });
     }
     if ("error" in result) {
-      return NextResponse.json({ error: result.error }, { status: 500 });
+      return apiError(result.error, 500);
     }
 
-    return NextResponse.json({
-      success: true,
+    return apiSuccess({
       presignedUrl: result.url,
       key: result.key,
       expiresAt: result.expiresAt,
       isMock: result.isMock ?? false,
     });
   } catch (error) {
-    console.error("[api/storage/presign] Unexpected error:", error);
-    return NextResponse.json({ error: "Internal server error." }, { status: 500 });
+    return apiInternalError(error, "Failed to generate presigned upload URL.");
   }
 }

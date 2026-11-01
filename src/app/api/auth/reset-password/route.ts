@@ -1,11 +1,46 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { resetPassword } from "@/lib/auth/server";
+import {
+  authPasswordResetLimiter,
+  getClientIp,
+  getRateLimitHeaders,
+} from "@/lib/rate-limit";
+import {
+  apiError,
+  apiInternalError,
+  apiSuccess,
+  apiTooManyRequests,
+  parseAndValidateJson,
+  ResetPasswordRequestSchema,
+} from "@/lib/api";
 
 export async function POST(request: NextRequest) {
-  const body = await request.json().catch(() => ({}));
-  const token = typeof body.token === "string" ? body.token : "";
-  const password = typeof body.password === "string" ? body.password : "";
-  if (!token || password.length < 8 || password.length > 256) return NextResponse.json({ error: "Invalid reset request." }, { status: 400 });
-  if (!(await resetPassword(token, password))) return NextResponse.json({ error: "Invalid or expired reset link." }, { status: 400 });
-  return NextResponse.json({ success: true });
+  try {
+    const ip = getClientIp(request.headers);
+    const rateCheck = await authPasswordResetLimiter.checkAsync(ip);
+    const rateHeaders = getRateLimitHeaders(rateCheck, authPasswordResetLimiter.limit);
+
+    if (!rateCheck.success) {
+      const retrySeconds = Math.ceil(rateCheck.retryAfterMs / 1000);
+      return apiTooManyRequests(
+        `Too many password reset attempts. Please try again in ${retrySeconds} seconds.`,
+        rateHeaders
+      );
+    }
+
+    const validation = await parseAndValidateJson(request, ResetPasswordRequestSchema);
+    if (!validation.success) {
+      return validation.response;
+    }
+
+    const { token, password } = validation.data;
+    const success = await resetPassword(token, password);
+    if (!success) {
+      return apiError("Invalid or expired password reset token.", 400, { headers: rateHeaders });
+    }
+
+    return apiSuccess({ message: "Password has been successfully updated." }, 200, rateHeaders);
+  } catch (error) {
+    return apiInternalError(error, "Unable to reset password.");
+  }
 }
