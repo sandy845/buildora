@@ -17,6 +17,12 @@ import {
   revokeAllUserSessions,
   revokeSessionToken,
 } from "./revocation";
+import {
+  allowDevSessionFallback,
+  createSessionToken,
+  readSessionToken,
+  type SessionPayload,
+} from "./session";
 import type { UserRole } from "@/lib/types/models";
 
 const scrypt = promisify(scryptCallback);
@@ -24,16 +30,6 @@ const sessionCookieName = "buildora_session";
 const sessionLifetimeSeconds = 60 * 60 * 24 * 7; // 7 days
 
 type AuthRole = UserRole;
-
-export type SessionPayload = {
-  sessionId: string;
-  userId: string;
-  role: AuthRole;
-  email?: string;
-  name?: string;
-  createdAt: number;
-  expiresAt: number;
-};
 
 function generateVerificationOtp() {
   return String(randomInt(100000, 1000000));
@@ -44,57 +40,6 @@ export type AuthActionState = {
   success?: boolean;
   verificationProvider?: "firebase" | "email";
 };
-
-function allowDevSessionFallback(): boolean {
-  if (process.env.NODE_ENV === "production") return false;
-  return process.env.ALLOW_DEV_SESSION_FALLBACK === "1" || process.env.NODE_ENV === "test";
-}
-
-function getAuthSecret(): string {
-  const secret = process.env.AUTH_SECRET;
-  if (process.env.NODE_ENV === "production" && (!secret || secret.length < 32)) {
-    throw new Error("AUTH_SECRET must be configured with at least 32 characters in production.");
-  }
-  return secret || (allowDevSessionFallback() ? "buildora_test_session_key_32_chars_minimum_length" : "");
-}
-
-function encode(value: string): string {
-  return Buffer.from(value, "utf8").toString("base64url");
-}
-
-function sign(value: string): string {
-  return createHmac("sha256", getAuthSecret()).update(value).digest("base64url");
-}
-
-export function createSessionToken(payload: SessionPayload): string {
-  const body = encode(JSON.stringify(payload));
-  return `${body}.${sign(body)}`;
-}
-
-export function readSessionToken(token: string): SessionPayload | null {
-  const [body, signature] = token.split(".");
-  if (!body || !signature) return null;
-
-  try {
-    const expectedSignature = sign(body);
-    const actual = Buffer.from(signature);
-    const expected = Buffer.from(expectedSignature);
-    if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) return null;
-
-    const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as SessionPayload;
-    if (
-      !payload.userId ||
-      !["customer", "admin"].includes(payload.role) ||
-      !payload.expiresAt ||
-      payload.expiresAt <= Date.now()
-    ) {
-      return null;
-    }
-    return payload;
-  } catch {
-    return null;
-  }
-}
 
 export async function setSession(userId: string, role: AuthRole, email?: string, name?: string): Promise<string> {
   const sessionId = randomBytes(16).toString("hex");

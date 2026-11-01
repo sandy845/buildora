@@ -3,6 +3,8 @@ import test from "node:test";
 import {
   createSessionToken,
   readSessionToken,
+} from "../src/lib/auth/session.ts";
+import {
   verifyPassword,
 } from "../src/lib/auth/server.ts";
 import {
