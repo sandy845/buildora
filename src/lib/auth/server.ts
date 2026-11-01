@@ -304,36 +304,32 @@ export async function registerUser(values: Record<string, unknown>): Promise<Aut
       passwordHash,
       role: "customer", // Strict: registration NEVER assigns admin role
       accountStatus: "active",
+      emailVerifiedAt: new Date(), // Immediate direct login without mandatory OTP barrier
     });
     if (adminAuth && firebaseUid) {
       await adminAuth.setCustomUserClaims(firebaseUid, { role: "customer", userId: created.id });
     }
 
     if (!firebaseEmailAuthEnabled) {
-      const rawToken = generateVerificationOtp();
-      await prisma.emailVerificationToken.create({
-        data: {
-          userId: created.id,
-          tokenHash: createHash("sha256").update(rawToken).digest("hex"),
-          expiresAt: new Date(Date.now() + 10 * 60 * 1000),
-          usedAt: null,
-          attempts: 0,
-        },
-      });
-      emailResult = await sendVerificationEmail(email, name, rawToken);
+      try {
+        const rawToken = generateVerificationOtp();
+        await prisma.emailVerificationToken.create({
+          data: {
+            userId: created.id,
+            tokenHash: createHash("sha256").update(rawToken).digest("hex"),
+            expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+            usedAt: null,
+            attempts: 0,
+          },
+        });
+        await sendVerificationEmail(email, name, rawToken);
+      } catch (emailErr) {
+        console.warn("[auth/register] Optional verification email dispatch skipped:", emailErr);
+      }
     }
   } catch (error) {
     console.error("[auth/register] Failed to create the account or verification token:", error);
     return { error: "Registration could not be completed. Please check the deployment configuration and try again." };
-  }
-  if (!firebaseEmailAuthEnabled && emailResult && !emailResult.sent) {
-    if (process.env.NODE_ENV !== "production") {
-      await updateUser({ id: created.id }, { emailVerifiedAt: new Date() });
-      return { success: true };
-    }
-    return {
-      error: "Your account was created, but we could not send the verification email. Configure email delivery or use Resend verification email after it is available.",
-    };
   }
 
   return { success: true, verificationProvider: firebaseEmailAuthEnabled ? "firebase" : "email" };
@@ -437,11 +433,6 @@ export async function loginUser(values: Record<string, unknown>): Promise<AuthAc
           ? "This account has been suspended. Please contact Buildora support."
           : "This account has been deactivated.",
     };
-  }
-
-  // Check email verification status
-  if (!user.emailVerifiedAt && process.env.NODE_ENV === "production") {
-    return { error: "Please verify your email address before logging in." };
   }
 
   // Verify password hash
