@@ -114,9 +114,7 @@ export async function signInWithFirebaseEmail(
   try {
     const cred = await signInWithEmailAndPassword(clientAuth, email, pass);
     await cred.user.reload();
-    if (!cred.user.emailVerified) {
-      return { success: false, error: "Please verify your email address using the link we sent before logging in." };
-    }
+    // NOTE: Email verification gate removed — login is allowed regardless of emailVerified status.
     const idToken = await cred.user.getIdToken(true);
 
     const res = await fetch("/api/auth/session", {

@@ -5,10 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { validateLogin } from "@/lib/auth";
 import { loginUser } from "@/lib/auth/server";
-import { isFirebaseClientConfigured } from "@/lib/firebase/config";
 import {
   sendFirebaseVerificationEmail,
-  signInWithFirebaseEmail,
   signInWithGoogle,
 } from "@/lib/firebase/client";
 
@@ -81,12 +79,9 @@ function LoginForm() {
     setServerError("");
 
     try {
-      let result = isFirebaseClientConfigured()
-        ? await signInWithFirebaseEmail(form.email, form.password)
-        : await loginUser(form);
-      if ("fallbackToDatabase" in result && result.fallbackToDatabase) {
-        result = await loginUser(form);
-      }
+      // Always use the database (Prisma/scrypt) path for email+password login.
+      // Firebase is only used for Google OAuth (see handleGoogleSignIn above).
+      const result = await loginUser(form);
       if (result.error) {
         setServerError(result.error);
         setSubmitState("error");
