@@ -62,17 +62,24 @@ export function ClientDashboardClient({
   const [hoveredBarPart, setHoveredBarPart] = useState<"done" | "pending" | null>(null);
   const [overviewHoveredBarPart, setOverviewHoveredBarPart] = useState<"done" | "pending" | null>(null);
   const [hoveredPhaseIndex, setHoveredPhaseIndex] = useState<number | null>(null);
+  const [hoveredFinCard, setHoveredFinCard] = useState<"budget" | "paid" | "remaining" | null>(null);
+  const [hoveredDisburseBar, setHoveredDisburseBar] = useState<"disbursed" | "escrow" | null>(null);
 
   const project = projects.find((p) => p.id === selectedProjectId) || projects[0];
   const progress = project?.progress ?? 0;
   const workPending = project?.workPending ?? Math.max(0, 100 - progress);
   const currentPhase = progress >= 90 ? 4 : progress >= 70 ? 3 : progress >= 45 ? 2 : progress >= 20 ? 1 : 0;
-  
-  // Real Financial Calculations (No hardcoded zero)
-  const totalBudget = project?.totalBudget ?? (finance?.totalBudget ?? 0);
-  const paidCost = project?.paidAmount ?? (finance?.paidTotal ?? 0);
-  const remainingCost = project?.remainingBalance ?? (finance?.remainingBalance ?? Math.max(0, totalBudget - paidCost));
+
+  // Rock-solid financial calculations — prefer per-project values, fall back to global finance summary
+  const rawBudget = project?.totalBudget ?? (finance?.totalBudget ?? 0);
+  const rawPaid = project?.paidAmount ?? (finance?.paidTotal ?? 0);
+  const rawRemaining = project?.remainingBalance ?? (finance?.remainingBalance ?? 0);
+  // If the project has payments but budget is still 0, derive it from paid + remaining
+  const totalBudget = rawBudget > 0 ? rawBudget : (rawPaid + rawRemaining > 0 ? rawPaid + rawRemaining : 0);
+  const paidCost = rawPaid;
+  const remainingCost = rawRemaining > 0 ? rawRemaining : Math.max(0, totalBudget - paidCost);
   const paidPercent = totalBudget > 0 ? Math.min(100, Math.round((paidCost / totalBudget) * 100)) : (paidCost > 0 ? 100 : 0);
+  const remainingPercent = 100 - paidPercent;
 
   const accountName = account?.name || "Client";
   const accountEmail = account?.email || "";
@@ -752,54 +759,161 @@ export function ClientDashboardClient({
                   <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${
                     remainingCost === 0 ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-800"
                   }`}>
-                    <span className={`h-2 w-2 rounded-full ${remainingCost === 0 ? "bg-emerald-500" : "bg-amber-500"}`} />
+                    <span className={`h-2 w-2 rounded-full ${remainingCost === 0 ? "bg-emerald-500 animate-pulse" : "bg-amber-500 animate-pulse"}`} />
                     {remainingCost === 0 ? "All Payments Cleared" : "Milestone Payment Pending"}
                   </span>
                 </div>
 
-                {/* 3 Major Cost KPIs */}
+                {/* 3 Major Cost KPI Cards — each interactive on hover */}
                 <div className="mt-6 grid gap-4 sm:grid-cols-3">
-                  <div className="rounded-2xl border border-border bg-[#faf8f3] p-5">
+
+                  {/* Total Budget Card */}
+                  <div
+                    className={`relative cursor-default rounded-2xl border p-5 transition-all duration-300 ${
+                      hoveredFinCard === "budget"
+                        ? "border-[#c5a059] bg-[#fffdf4] shadow-lg shadow-[#c5a059]/20 -translate-y-1 scale-[1.02]"
+                        : "border-border bg-[#faf8f3] hover:border-[#c5a059]/50"
+                    }`}
+                    onMouseEnter={() => setHoveredFinCard("budget")}
+                    onMouseLeave={() => setHoveredFinCard(null)}
+                  >
                     <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted">Total Approved Budget</p>
                     <p className="mt-3 text-3xl font-extrabold tracking-tight text-primary">
-                      {totalBudget > 0 ? `₹${totalBudget.toLocaleString("en-IN")}` : (quotations[0]?.detail.split(" · ")[0] || "Pending Quote")}
+                      {totalBudget > 0 ? `₹${totalBudget.toLocaleString("en-IN")}` : "Pending Quote"}
                     </p>
                     <p className="mt-2 text-xs text-muted">Based on signed quotation &amp; engineering scope</p>
+                    {hoveredFinCard === "budget" && (
+                      <div className="absolute -top-12 left-1/2 z-30 -translate-x-1/2 whitespace-nowrap rounded-xl border border-[#c5a059] bg-[#0a0e14] px-3.5 py-1.5 text-xs text-white shadow-xl shadow-black/40">
+                        <span className="font-bold text-[#e5c875]">📋 Approved Contract Value</span>
+                        <span className="text-neutral-400"> · {paidPercent}% disbursed</span>
+                        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 h-2 w-2 rotate-45 border-b border-r border-[#c5a059] bg-[#0a0e14]" />
+                      </div>
+                    )}
                   </div>
 
-                  <div className="rounded-2xl border border-emerald-300/50 bg-emerald-50/50 p-5">
+                  {/* Amount Paid Card */}
+                  <div
+                    className={`relative cursor-default rounded-2xl border p-5 transition-all duration-300 ${
+                      hoveredFinCard === "paid"
+                        ? "border-emerald-400 bg-emerald-50 shadow-lg shadow-emerald-600/20 -translate-y-1 scale-[1.02]"
+                        : "border-emerald-300/50 bg-emerald-50/50 hover:border-emerald-400/60"
+                    }`}
+                    onMouseEnter={() => setHoveredFinCard("paid")}
+                    onMouseLeave={() => setHoveredFinCard(null)}
+                  >
                     <div className="flex items-center justify-between">
                       <p className="text-xs font-bold uppercase tracking-[0.14em] text-emerald-800">Amount Paid to Date</p>
-                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">{paidPercent}%</span>
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold transition-all duration-300 ${
+                        hoveredFinCard === "paid" ? "bg-emerald-600 text-white" : "bg-emerald-100 text-emerald-800"
+                      }`}>{paidPercent}%</span>
                     </div>
                     <p className="mt-3 text-3xl font-extrabold tracking-tight text-emerald-950">
-                      ₹{paidCost.toLocaleString("en-IN")}
+                      {paidCost > 0 ? `₹${paidCost.toLocaleString("en-IN")}` : "₹0"}
                     </p>
                     <p className="mt-2 text-xs text-emerald-700">Verified through milestone sign-offs</p>
+                    {hoveredFinCard === "paid" && (
+                      <div className="absolute -top-12 left-1/2 z-30 -translate-x-1/2 whitespace-nowrap rounded-xl border border-emerald-500 bg-[#0a0e14] px-3.5 py-1.5 text-xs text-white shadow-xl shadow-black/40">
+                        <span className="font-bold text-emerald-400">✓ ₹{paidCost.toLocaleString("en-IN")} Disbursed</span>
+                        <span className="text-neutral-400"> · Milestones 1 &amp; 2</span>
+                        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 h-2 w-2 rotate-45 border-b border-r border-emerald-500 bg-[#0a0e14]" />
+                      </div>
+                    )}
                   </div>
 
-                  <div className="rounded-2xl border border-[#d9cba8] bg-[#fffdf8] p-5">
+                  {/* Remaining Balance Card */}
+                  <div
+                    className={`relative cursor-default rounded-2xl border p-5 transition-all duration-300 ${
+                      hoveredFinCard === "remaining"
+                        ? "border-[#c5a059] bg-[#fffdf0] shadow-lg shadow-amber-500/20 -translate-y-1 scale-[1.02]"
+                        : "border-[#d9cba8] bg-[#fffdf8] hover:border-[#c5a059]/60"
+                    }`}
+                    onMouseEnter={() => setHoveredFinCard("remaining")}
+                    onMouseLeave={() => setHoveredFinCard(null)}
+                  >
                     <div className="flex items-center justify-between">
                       <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#a98032]">Remaining Balance</p>
-                      <span className="rounded-full bg-[#c5a059]/15 px-2 py-0.5 text-[10px] font-bold text-[#a98032]">{100 - paidPercent}%</span>
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold transition-all duration-300 ${
+                        hoveredFinCard === "remaining" ? "bg-amber-500 text-white" : "bg-[#c5a059]/15 text-[#a98032]"
+                      }`}>{remainingPercent}%</span>
                     </div>
                     <p className="mt-3 text-3xl font-extrabold tracking-tight text-primary">
-                      ₹{remainingCost.toLocaleString("en-IN")}
+                      {remainingCost > 0 ? `₹${remainingCost.toLocaleString("en-IN")}` : "₹0"}
                     </p>
                     <p className="mt-2 text-xs text-muted">Due across remaining construction phases</p>
+                    {hoveredFinCard === "remaining" && (
+                      <div className="absolute -top-12 left-1/2 z-30 -translate-x-1/2 whitespace-nowrap rounded-xl border border-amber-500 bg-[#0a0e14] px-3.5 py-1.5 text-xs text-white shadow-xl shadow-black/40">
+                        <span className="font-bold text-amber-400">⏳ ₹{remainingCost.toLocaleString("en-IN")} in Escrow</span>
+                        <span className="text-neutral-400"> · Milestones 3 &amp; 4</span>
+                        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 h-2 w-2 rotate-45 border-b border-r border-amber-500 bg-[#0a0e14]" />
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {/* Budget Disbursement Bar */}
+                {/* Interactive Budget Disbursement Bar */}
                 <div className="mt-6 rounded-2xl border border-border bg-white p-5">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold text-primary">Disbursement Progress: {paidPercent}% Paid</span>
-                    <span className="font-semibold text-muted">{100 - paidPercent}% Remaining to Disburse</span>
+                  <div className="mb-2 flex items-center justify-between text-xs">
+                    <button
+                      type="button"
+                      onMouseEnter={() => setHoveredDisburseBar("disbursed")}
+                      onMouseLeave={() => setHoveredDisburseBar(null)}
+                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-semibold transition-all duration-200 ${
+                        hoveredDisburseBar === "disbursed"
+                          ? "bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-500/30 scale-105"
+                          : "bg-emerald-50 text-emerald-800 hover:bg-emerald-100 cursor-pointer"
+                      }`}
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                      Disbursed: {paidPercent}%
+                    </button>
+                    <button
+                      type="button"
+                      onMouseEnter={() => setHoveredDisburseBar("escrow")}
+                      onMouseLeave={() => setHoveredDisburseBar(null)}
+                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-semibold transition-all duration-200 ${
+                        hoveredDisburseBar === "escrow"
+                          ? "bg-amber-500 text-white shadow-sm ring-2 ring-amber-400/30 scale-105"
+                          : "bg-amber-50 text-amber-900 hover:bg-amber-100 cursor-pointer"
+                      }`}
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                      In Escrow: {remainingPercent}%
+                    </button>
                   </div>
-                  <div className="mt-3 flex h-3 overflow-hidden rounded-full bg-[#eee9dd]">
-                    <div className="h-full bg-emerald-600 transition-all duration-500" style={{ width: `${paidPercent}%` }} />
-                    <div className="h-full bg-amber-400/60 transition-all duration-500" style={{ width: `${100 - paidPercent}%` }} />
+
+                  <div className="relative mt-2 flex h-3.5 overflow-visible rounded-full bg-[#eee9dd] shadow-inner">
+                    {/* Disbursed segment */}
+                    <div
+                      onMouseEnter={() => setHoveredDisburseBar("disbursed")}
+                      onMouseLeave={() => setHoveredDisburseBar(null)}
+                      className={`h-full cursor-pointer rounded-l-full transition-all duration-300 ${
+                        hoveredDisburseBar === "disbursed" ? "brightness-110 shadow-lg shadow-emerald-500/40" : ""
+                      }`}
+                      style={{
+                        width: `${paidPercent}%`,
+                        background: "linear-gradient(90deg, #059669 0%, #34d399 80%, #6ee7b7 100%)",
+                      }}
+                    />
+                    {/* Escrow segment */}
+                    <div
+                      onMouseEnter={() => setHoveredDisburseBar("escrow")}
+                      onMouseLeave={() => setHoveredDisburseBar(null)}
+                      className={`h-full cursor-pointer rounded-r-full transition-all duration-300 ${
+                        hoveredDisburseBar === "escrow" ? "bg-amber-400 shadow-lg shadow-amber-400/40" : "bg-amber-300/70"
+                      }`}
+                      style={{ width: `${remainingPercent}%` }}
+                    />
+
+                    {/* Hover tooltip on bar */}
+                    {hoveredDisburseBar && (
+                      <div className="absolute -top-11 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-lg bg-[#0a0e14] px-3 py-1 text-[11px] font-medium text-white shadow-lg">
+                        {hoveredDisburseBar === "disbursed"
+                          ? `✓ Disbursed to Site: ₹${paidCost.toLocaleString("en-IN")} (${paidPercent}%)`
+                          : `⏳ Retained in Escrow: ₹${remainingCost.toLocaleString("en-IN")} (${remainingPercent}%)`}
+                      </div>
+                    )}
                   </div>
+
                   <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4 text-xs text-muted">
                     <div className="flex items-center gap-4">
                       <span className="inline-flex items-center gap-1.5">
