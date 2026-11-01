@@ -103,15 +103,8 @@ export default function RegisterPage() {
       }
 
       const userEmail = form.email.trim();
-      if (result.verificationProvider === "firebase") {
-        const verification = await sendFirebaseVerificationEmail(userEmail, form.password);
-        if (!verification.success) {
-          setServerError(verification.error || "Account created, but we could not send the verification link.");
-          setSubmitState("error");
-          return;
-        }
-      }
-
+      // Skip Firebase verification — account is created with emailVerifiedAt already set.
+      // User can log in immediately with email + password, no verify page needed.
       setSubmitState("success");
       const userName = form.name.trim();
       if (typeof window !== "undefined") {
@@ -120,11 +113,8 @@ export default function RegisterPage() {
         localStorage.setItem("buildora_dev_google_email", userEmail);
         localStorage.setItem("buildora_dev_google_name", userName);
       }
-      if (result.verificationProvider === "firebase") {
-        router.push(`/auth/verify?provider=firebase&email=${encodeURIComponent(userEmail)}`);
-      } else {
-        router.push(`/auth/login?registered=true${userEmail ? `&email=${encodeURIComponent(userEmail)}` : ""}`);
-      }
+      // Always redirect to login directly
+      router.push(`/auth/login?registered=true${userEmail ? `&email=${encodeURIComponent(userEmail)}` : ""}`);
     } catch {
       setServerError("Registration is temporarily unavailable. Please try again later.");
       setSubmitState("error");
