@@ -11,14 +11,12 @@ export type { Service } from "@/data/services";
 
 const clientNavFallback = [
   { label: "Overview", href: "/client/dashboard", icon: "grid" },
-  { label: "My Projects", href: "/client/dashboard#projects", icon: "building" },
-  { label: "Project Progress", href: "/client/dashboard#progress", icon: "chart" },
-  { label: "Timeline", href: "/client/dashboard#timeline", icon: "calendar" },
-  { label: "Cost & Payments", href: "/client/dashboard#payments", icon: "card" },
-  { label: "Documents", href: "/client/dashboard#documents", icon: "folder" },
-  { label: "Design Approvals", href: "/client/dashboard#approvals", icon: "check" },
-  { label: "Messages", href: "/client/dashboard#messages", icon: "message" },
-  { label: "Notifications", href: "/client/dashboard#notifications", icon: "bell" },
+  { label: "01 / Projects", href: "/client/dashboard#projects", icon: "building" },
+  { label: "02 / Progress", href: "/client/dashboard#progress", icon: "chart" },
+  { label: "03 / Financials", href: "/client/dashboard#finances", icon: "card" },
+  { label: "04 / Coordination", href: "/client/dashboard#timeline", icon: "calendar" },
+  { label: "05 / Decisions", href: "/client/dashboard#approvals", icon: "check" },
+  { label: "06 / Resources", href: "/client/dashboard#resources", icon: "folder" },
 ];
 
 const clientStatsFallback = [
@@ -83,47 +81,60 @@ async function getClientDashboardServerSnapshot() {
       prisma.project.findMany({
         where: { customerId: user.id, deletedAt: null },
         orderBy: { updatedAt: "desc" },
-        include: { milestones: { where: { status: { not: "completed" } }, orderBy: { dueDate: "asc" }, take: 1 } },
+        include: {
+          milestones: { orderBy: { dueDate: "asc" } },
+          payments: { select: { amount: true, status: true, paidAt: true, reference: true } },
+          quotations: { where: { deletedAt: null }, select: { total: true, status: true } },
+        },
       }),
       prisma.activityEvent.findMany({
         where: { project: { customerId: user.id } },
         orderBy: { createdAt: "desc" },
-        take: 4,
+        take: 6,
       }),
       prisma.approval.count({
         where: { status: "pending", project: { customerId: user.id } },
       }),
       prisma.payment.findMany({
         where: { project: { customerId: user.id } },
+        orderBy: { createdAt: "desc" },
       }),
       prisma.quotation.findMany({
         where: { project: { customerId: user.id }, deletedAt: null },
         orderBy: { updatedAt: "desc" },
-        take: 3,
+        take: 5,
       }),
       prisma.document.findMany({
         where: { project: { customerId: user.id }, deletedAt: null },
         orderBy: { updatedAt: "desc" },
-        take: 3,
+        take: 5,
       }),
       prisma.message.findMany({
         where: { conversation: { project: { customerId: user.id } } },
         orderBy: { sentAt: "desc" },
-        take: 3,
+        take: 5,
       }),
       prisma.notification.findMany({
         where: { userId: user.id },
         orderBy: { createdAt: "desc" },
-        take: 3,
+        take: 5,
       }),
     ]);
 
     const progressValues = projects.map((p: any) => Number(p.progress || 0));
     const avgProgress = progressValues.length ? Math.round(progressValues.reduce((s: number, v: number) => s + v, 0) / progressValues.length) : 0;
 
+    const paidTotal = payments
+      .filter((p: any) => ["paid", "completed"].includes(p.status))
+      .reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+
     const unpaidTotal = payments
       .filter((p: any) => ["pending", "partially_paid", "overdue"].includes(p.status))
       .reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+
+    const quotedTotal = quotations.reduce((sum: number, q: any) => sum + Number(q.total || 0), 0);
+    const totalBudget = quotedTotal > 0 ? quotedTotal : (paidTotal + unpaidTotal);
+    const remainingBalance = Math.max(0, totalBudget - paidTotal);
 
     const pendingApprovalCount = projects.length > 0 ? approvalCount : 0;
 
@@ -145,7 +156,7 @@ async function getClientDashboardServerSnapshot() {
         {
           label: "Overall progress",
           value: `${avgProgress}%`,
-          detail: projects.length === 0 ? "No project in progress" : "Across your portfolio",
+          detail: projects.length === 0 ? "No project in progress" : `${Math.max(0, 100 - avgProgress)}% pending across build`,
           tone: "positive",
         },
         {
@@ -157,28 +168,56 @@ async function getClientDashboardServerSnapshot() {
         {
           label: "Outstanding payment",
           value: `₹${unpaidTotal.toLocaleString("en-IN")}`,
-          detail: unpaidTotal === 0 ? "All caught up" : "Due for review",
+          detail: unpaidTotal === 0 ? "All caught up" : `₹${paidTotal.toLocaleString("en-IN")} paid to date`,
           tone: "attention",
         },
       ],
-      projects: projects.map((p: any) => ({
-        id: p.id,
-        name: (p.name as string) || "Your Project",
-        type: p.status === "planning" ? "Residential construction" : "Project update",
-        location: (p.location as string) || "Your project location",
-        progress: Number(p.progress || 0),
-        milestone: p.milestones?.[0]?.name || "No milestone scheduled",
-        due: p.milestones?.[0]?.dueDate
-          ? new Date(p.milestones[0].dueDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })
-          : "Pending schedule",
-        color: p.status === "completed" ? "bg-emerald-600" : "bg-amber-500",
-      })),
+      projects: projects.map((p: any) => {
+        const projPayments = p.payments || [];
+        const pPaid = projPayments.filter((pm: any) => ["paid", "completed"].includes(pm.status)).reduce((s: number, pm: any) => s + Number(pm.amount || 0), 0);
+        const pUnpaid = projPayments.filter((pm: any) => ["pending", "partially_paid", "overdue"].includes(pm.status)).reduce((s: number, pm: any) => s + Number(pm.amount || 0), 0);
+        const pQuotes = p.quotations || [];
+        const pQuoteTotal = pQuotes.reduce((s: number, q: any) => s + Number(q.total || 0), 0);
+        const pBudget = pQuoteTotal > 0 ? pQuoteTotal : (pPaid + pUnpaid);
+        const pRemaining = Math.max(0, pBudget - pPaid);
+        const prog = Number(p.progress || 0);
+        const nextMilestone = p.milestones?.find((m: any) => m.status !== "completed") || p.milestones?.[0];
+
+        return {
+          id: p.id,
+          name: (p.name as string) || "Your Project",
+          type: p.status === "planning" ? "Residential construction" : "Architectural & Interior build",
+          location: (p.location as string) || "Your project location",
+          progress: prog,
+          workPending: Math.max(0, 100 - prog),
+          milestone: nextMilestone?.name || "Initial Architectural Review",
+          due: nextMilestone?.dueDate
+            ? new Date(nextMilestone.dueDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })
+            : "Scheduled on plan",
+          color: p.status === "completed" ? "bg-emerald-600" : "bg-amber-500",
+          totalBudget: pBudget,
+          paidAmount: pPaid,
+          remainingBalance: pRemaining,
+          milestones: (p.milestones || []).map((m: any) => ({
+            id: m.id,
+            name: m.name,
+            status: m.status,
+            due: m.dueDate ? new Date(m.dueDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }) : "TBD",
+          })),
+        };
+      }),
       activity: activity.map((e: any) => ({
         title: (e.description as string) || (e.type as string),
         detail: e.createdAt ? new Date(e.createdAt as string).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }) : "Recently",
         icon: "building",
         tone: "dark",
       })),
+      finance: {
+        totalBudget,
+        paidTotal,
+        unpaidTotal,
+        remainingBalance,
+      },
       quotations: quotations.map((q: any) => ({
         id: q.id,
         title: `Quotation #${q.quotationNumber || q.id}`,
@@ -215,6 +254,12 @@ async function getClientDashboardServerSnapshot() {
       ],
       projects: [],
       activity: [],
+      finance: {
+        totalBudget: 0,
+        paidTotal: 0,
+        unpaidTotal: 0,
+        remainingBalance: 0,
+      },
       quotations: [],
       documents: [],
       messages: [],

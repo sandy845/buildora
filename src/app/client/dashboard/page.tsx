@@ -64,6 +64,7 @@ export default async function ClientDashboardPage() {
           messages={data.messages}
           notifications={data.notifications}
           account={data.account}
+          finance={data.finance}
           dataUnavailable={data.dataUnavailable}
         />
       </div>
