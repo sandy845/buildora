@@ -179,11 +179,11 @@ export function ClientDashboardClient({
           ))}
         </section>
 
-        {/* ── 01 / PROJECT OVERVIEW ─────────────────────────────────────────── */}
+        {/* ── PROJECT OVERVIEW ─────────────────────────────────────────── */}
         <section aria-labelledby="project-overview-heading" className="mt-10">
           <div className="mb-5 flex items-center gap-4">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#a98032]">01 / Project Overview</p>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#a98032]">Project Overview</p>
               <h2 id="project-overview-heading" className="mt-1 text-lg font-semibold text-primary">Executive summary &amp; active job</h2>
             </div>
             <span className="h-px flex-1 bg-border" />
@@ -362,11 +362,11 @@ export function ClientDashboardClient({
           )}
         </section>
 
-        {/* ── 02 / PROGRESS ─────────────────────────────────────────── */}
+        {/* ── PROGRESS ─────────────────────────────────────────── */}
         <section aria-labelledby="progress-heading" className="mt-12">
           <div className="mb-5 flex items-center gap-4">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#a98032]">02 / Progress &amp; Work Status</p>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#a98032]">Progress &amp; Work Status</p>
               <h2 id="progress-heading" className="mt-1 text-lg font-semibold text-primary">Live completion &amp; pending execution</h2>
             </div>
             <span className="h-px flex-1 bg-border" />
@@ -531,11 +531,11 @@ export function ClientDashboardClient({
           </section>
         </section>
 
-        {/* ── 03 / FINANCIALS & COST CONTROL ─────────────────────────────────── */}
+        {/* ── FINANCIALS & COST CONTROL ─────────────────────────────────── */}
         <section aria-labelledby="finance-heading" className="mt-12">
           <div className="mb-5 flex items-center gap-4">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#a98032]">03 / Financials &amp; Cost Control</p>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#a98032]">Financials &amp; Cost Control</p>
               <h2 id="finance-heading" className="mt-1 text-lg font-semibold text-primary">Costs paid, remaining balance &amp; escrow</h2>
             </div>
             <span className="h-px flex-1 bg-border" />
@@ -627,11 +627,11 @@ export function ClientDashboardClient({
           </section>
         </section>
 
-        {/* ── 04 / COORDINATION & TIMELINE ──────────────────────────────────── */}
+        {/* ── COORDINATION & TIMELINE ──────────────────────────────────── */}
         <section aria-labelledby="timeline-heading" className="mt-12">
           <div className="mb-5 flex items-center gap-4">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#a98032]">04 / Coordination &amp; Timeline</p>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#a98032]">Coordination &amp; Timeline</p>
               <h2 id="timeline-heading" className="mt-1 text-lg font-semibold text-primary">Milestones schedule &amp; site logs</h2>
             </div>
             <span className="h-px flex-1 bg-border" />
@@ -745,11 +745,11 @@ export function ClientDashboardClient({
           </section>
         </section>
 
-        {/* ── 05 / DECISIONS & APPROVALS ────────────────────────────────────── */}
+        {/* ── DECISIONS & APPROVALS ────────────────────────────────────── */}
         <section aria-labelledby="decisions-heading" className="mt-12">
           <div className="mb-5 flex items-center gap-4">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#a98032]">05 / Decisions &amp; Approvals</p>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#a98032]">Decisions &amp; Approvals</p>
               <h2 id="decisions-heading" className="mt-1 text-lg font-semibold text-primary">Design reviews &amp; client sign-offs</h2>
             </div>
             <span className="h-px flex-1 bg-border" />
@@ -807,11 +807,11 @@ export function ClientDashboardClient({
           </section>
         </section>
 
-        {/* ── 06 / RESOURCES & VAULT ────────────────────────────────────────── */}
+        {/* ── RESOURCES & VAULT ────────────────────────────────────────── */}
         <section aria-labelledby="resources-heading" className="mt-12">
           <div className="mb-5 flex items-center gap-4">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#a98032]">06 / Resources &amp; Vault</p>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#a98032]">Resources &amp; Vault</p>
               <h2 id="resources-heading" className="mt-1 text-lg font-semibold text-primary">Blueprints, team chat &amp; notifications</h2>
             </div>
             <span className="h-px flex-1 bg-border" />

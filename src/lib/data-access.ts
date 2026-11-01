@@ -11,12 +11,12 @@ export type { Service } from "@/data/services";
 
 const clientNavFallback = [
   { label: "Overview", href: "/client/dashboard", icon: "grid" },
-  { label: "01 / Projects", href: "/client/dashboard#projects", icon: "building" },
-  { label: "02 / Progress", href: "/client/dashboard#progress", icon: "chart" },
-  { label: "03 / Financials", href: "/client/dashboard#finances", icon: "card" },
-  { label: "04 / Coordination", href: "/client/dashboard#timeline", icon: "calendar" },
-  { label: "05 / Decisions", href: "/client/dashboard#approvals", icon: "check" },
-  { label: "06 / Resources", href: "/client/dashboard#resources", icon: "folder" },
+  { label: "Projects", href: "/client/dashboard#projects", icon: "building" },
+  { label: "Progress", href: "/client/dashboard#progress", icon: "chart" },
+  { label: "Financials", href: "/client/dashboard#finances", icon: "card" },
+  { label: "Coordination", href: "/client/dashboard#timeline", icon: "calendar" },
+  { label: "Decisions", href: "/client/dashboard#approvals", icon: "check" },
+  { label: "Resources", href: "/client/dashboard#resources", icon: "folder" },
 ];
 
 const clientStatsFallback = [
